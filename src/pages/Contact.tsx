@@ -23,12 +23,7 @@ function Contact() {
         </div>
         <div className="card-grid">
           {strings.contact.cards.map((card) => {
-            const link =
-              card.title === strings.contact.cards[0].title
-                ? `tel:${strings.nav.phone}`
-                : card.title === strings.contact.cards[1].title
-                  ? `mailto:${strings.footer.email}`
-                  : '/contact'
+            const link = card.text.includes('@') ? `mailto:${card.text}` : '/contact'
             return (
               <a key={card.title} className="card card-link" href={link}>
                 <h3>{card.title}</h3>

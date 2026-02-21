@@ -12,4 +12,4 @@ const QuoteSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
-export const Quote = mongoose.model('Quote', QuoteSchema)
+export const Quote = mongoose.models.Quote || mongoose.model('Quote', QuoteSchema)

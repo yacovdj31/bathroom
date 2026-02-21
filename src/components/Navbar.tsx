@@ -45,7 +45,7 @@ function Navbar() {
     <header ref={headerRef} className="navbar">
       <div className="navbar-inner">
         <NavLink className="brand" to="/" onClick={() => setMenuOpen(false)}>
-          JEWHAVEN
+          bathroomsheli.com
         </NavLink>
 
         <nav className={`nav-links ${menuOpen ? 'is-open' : ''}`} aria-label="Primary">
@@ -68,9 +68,6 @@ function Navbar() {
         </Link>
 
         <div className="nav-actions">
-          <a className="nav-phone" href={`tel:${strings.nav.phone}`}>
-            {strings.nav.phone}
-          </a>
           <div className="lang-toggle" role="group" aria-label={strings.nav.langLabel}>
             <button
               type="button"
@@ -123,9 +120,6 @@ function Navbar() {
         <Link className="button primary" to="/contact" onClick={() => setMenuOpen(false)}>
           {strings.nav.cta}
         </Link>
-        <a className="button secondary" href={`tel:${strings.nav.phone}`} onClick={() => setMenuOpen(false)}>
-          {strings.nav.phone}
-        </a>
       </div>
     </header>
   )

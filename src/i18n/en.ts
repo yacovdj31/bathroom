@@ -1,6 +1,6 @@
 export const en = {
-  brand: 'JewHaven',
-  brandMark: 'JH',
+  brand: 'bathroomsheli.com',
+  brandMark: 'BS',
   nav: {
     links: [
       { label: 'Home', path: '/' },
@@ -8,8 +8,6 @@ export const en = {
       { label: 'About', path: '/about' },
       { label: 'Contact', path: '/contact' },
     ],
-    phone: '053-344-1353',
-    phoneLabel: 'Call',
     cta: 'Request Quote',
     langLabel: 'Language',
     lang: { en: 'EN', he: 'HE' },
@@ -20,9 +18,9 @@ export const en = {
       eyebrow: 'Portable restroom trailers for events in Israel',
       title: 'Clean, modern restroom trailers that look great at any event.',
       subtitle:
-        'JewHaven provides premium portable bathroom trailers for weddings, productions, and corporate events. Fast delivery, spotless setup, and a smooth guest experience.',
+        'bathroomsheli provides premium portable bathroom trailers for weddings, productions, and corporate events. Fast delivery, spotless setup, and a smooth guest experience.',
       primaryCta: 'Request Quote',
-      secondaryCta: 'Call Now',
+      secondaryCta: 'Email Us',
     },
     badges: [
       'Premium finish',
@@ -134,7 +132,7 @@ export const en = {
   about: {
     title: 'Simple, premium restroom rentals across Israel.',
     body: [
-      'JewHaven was built to make portable restroom rentals feel easy and professional.',
+      'bathroomsheli was built to make portable restroom rentals feel easy and professional.',
       'We focus on clean interiors, quiet comfort, and on-time service so your event runs smoothly.',
       'From weddings to productions, we deliver a polished experience that guests appreciate.',
       'Every unit is sanitized before arrival and inspected on-site to ensure a flawless presentation.',
@@ -168,10 +166,9 @@ export const en = {
   },
   contact: {
     title: 'Contact the owner directly',
-    subtitle: 'Fast response by phone or form. We keep it simple.',
+    subtitle: 'Fast response by email or form. We keep it simple.',
     cards: [
-      { title: 'Phone', text: '053-344-1353' },
-      { title: 'Email', text: 'hello@jewhaven.co.il' },
+      { title: 'Email', text: 'bathroomsheli@gmail.com' },
       { title: 'Response time', text: 'Usually within a few hours' },
     ],
   },
@@ -179,7 +176,6 @@ export const en = {
     fields: {
       fullName: 'Full name',
       email: 'Email',
-      phone: 'Phone',
       eventDate: 'Event date',
       cityOrArea: 'City or area',
       trailerType: 'Trailer type',
@@ -192,12 +188,11 @@ export const en = {
     },
     submit: 'Send request',
     successTitle: 'Thanks — we’ll reach out soon.',
-    successBody: 'Your request has been received. A JewHaven specialist will reply shortly.',
+    successBody: 'Your request has been received. A bathroomsheli specialist will reply shortly.',
     sendAnother: 'Send another request',
     errors: {
       fullName: 'Please enter your name.',
       email: 'Please enter a valid email.',
-      phone: 'Please enter a phone number.',
       eventDate: 'Please choose a date.',
       cityOrArea: 'Please enter a city or area.',
       trailerType: 'Please select a trailer.',
@@ -205,14 +200,14 @@ export const en = {
     },
   },
   footer: {
-    title: 'JewHaven',
+    title: 'bathroomsheli.com',
     description:
       'Israel-based luxury restroom trailer rentals for events, productions, and premium hospitality.',
     serviceTitle: 'Service area',
     serviceText: 'Nationwide coverage with emphasis on Tel Aviv and central districts.',
     contactTitle: 'Contact',
-    email: 'hello@jewhaven.co.il',
-    phone: '053-344-1353',
-    note: '© 2026 JewHaven. All rights reserved.',
+    email: 'bathroomsheli@gmail.com',
+    note: '© 2026 bathroomsheli. All rights reserved.',
   },
 } as const
+

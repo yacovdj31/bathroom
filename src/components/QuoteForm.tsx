@@ -4,7 +4,6 @@ import { useI18n } from '../i18n'
 type QuoteFormValues = {
   fullName: string
   email: string
-  phone: string
   eventDate: string
   cityOrArea: string
   trailerType: string
@@ -14,7 +13,6 @@ type QuoteFormValues = {
 const initialValues: QuoteFormValues = {
   fullName: '',
   email: '',
-  phone: '',
   eventDate: '',
   cityOrArea: '',
   trailerType: '',
@@ -39,7 +37,6 @@ function QuoteForm() {
     const nextErrors: Record<string, string> = {}
     if (!values.fullName.trim()) nextErrors.fullName = strings.form.errors.fullName
     if (!values.email.trim()) nextErrors.email = strings.form.errors.email
-    if (!values.phone.trim()) nextErrors.phone = strings.form.errors.phone
     if (!values.eventDate.trim()) nextErrors.eventDate = strings.form.errors.eventDate
     if (!values.cityOrArea.trim()) nextErrors.cityOrArea = strings.form.errors.cityOrArea
     if (!values.trailerType.trim())
@@ -54,21 +51,43 @@ function QuoteForm() {
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), 12000)
+
     try {
       setStatus('submitting')
       const response = await fetch('/api/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
+        signal: controller.signal,
       })
       if (!response.ok) {
-        throw new Error('Request failed')
+        let details = ''
+        let requestId = ''
+        let likelyCause = ''
+        try {
+          const payload = await response.json()
+          details = typeof payload?.reason === 'string' ? payload.reason : ''
+          requestId = typeof payload?.requestId === 'string' ? payload.requestId : ''
+          likelyCause = typeof payload?.likelyCause === 'string' ? payload.likelyCause : ''
+        } catch {
+          details = ''
+        }
+        const parts = [details, likelyCause ? `cause:${likelyCause}` : '', requestId ? `id:${requestId}` : ''].filter(Boolean)
+        throw new Error(parts.join(' | ') || 'Request failed')
       }
       setStatus('success')
       setValues(initialValues)
     } catch (error) {
-      setSubmitError(strings.form.errors.submit)
+      const message =
+        error instanceof Error && error.message && error.message !== 'Request failed'
+          ? `${strings.form.errors.submit} (${error.message})`
+          : strings.form.errors.submit
+      setSubmitError(message)
       setStatus('idle')
+    } finally {
+      window.clearTimeout(timeoutId)
     }
   }
 
@@ -122,19 +141,6 @@ function QuoteForm() {
           aria-invalid={Boolean(errors.email)}
         />
         {errors.email && <span className="field-error">{errors.email}</span>}
-      </div>
-
-      <div className="field">
-        <label htmlFor="phone">{strings.form.fields.phone}</label>
-        <input
-          id="phone"
-          name="phone"
-          type="tel"
-          value={values.phone}
-          onChange={handleChange}
-          aria-invalid={Boolean(errors.phone)}
-        />
-        {errors.phone && <span className="field-error">{errors.phone}</span>}
       </div>
 
       <div className="field">
@@ -192,10 +198,11 @@ function QuoteForm() {
         />
       </div>
 
-      {submitError && <span className="field-error">{submitError}</span>}
+      {submitError && <span className="field-error form-error">{submitError}</span>}
 
-      <button className="button primary" type="submit" disabled={status === 'submitting'}>
-        {strings.form.submit}
+      <button className="button primary form-submit" type="submit" disabled={status === 'submitting'}>
+        {status === 'submitting' && <span className="button-spinner" aria-hidden="true" />}
+        {status === 'submitting' ? 'Sending...' : strings.form.submit}
       </button>
     </form>
   )

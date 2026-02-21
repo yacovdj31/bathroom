@@ -16,8 +16,9 @@ function Footer() {
         </div>
         <div>
           <p className="footer-title">{strings.footer.contactTitle}</p>
-          <p>{strings.footer.email}</p>
-          <p>{strings.footer.phone}</p>
+          <p>
+            <a href={`mailto:${strings.footer.email}`}>{strings.footer.email}</a>
+          </p>
         </div>
       </div>
       <p className="footer-note">{strings.footer.note}</p>

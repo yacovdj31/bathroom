@@ -1,37 +1,8 @@
 import sgMail from '@sendgrid/mail'
 
-type QuoteEmailInput = {
-  fullName: string
-  email?: string
-  eventDate: string
-  cityOrArea: string
-  trailerType: string
-  message?: string
-  createdAt: Date
-}
+const formatLine = (label, value) => `${label}: ${value && value.trim().length > 0 ? value : 'N/A'}`
 
-export type QuoteEmailResult = {
-  provider: 'SENDGRID' | 'DISABLED'
-  to?: string
-  from?: string
-  messageId?: string
-  statusCode?: number
-}
-
-export class QuoteEmailError extends Error {
-  readonly details: Record<string, unknown>
-
-  constructor(message: string, details: Record<string, unknown>) {
-    super(message)
-    this.name = 'QuoteEmailError'
-    this.details = details
-  }
-}
-
-const formatLine = (label: string, value?: string) =>
-  `${label}: ${value && value.trim().length > 0 ? value : 'N/A'}`
-
-const escapeHtml = (value: string) =>
+const escapeHtml = (value) =>
   value
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -39,45 +10,57 @@ const escapeHtml = (value: string) =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;')
 
-const normalizeError = (error: unknown) => {
-  const err = error as
-    | {
-        message?: string
-        response?: {
-          statusCode?: number
-          body?: unknown
-          headers?: Record<string, string>
-        }
-      }
-    | undefined
+const extractSendgridError = (error) => {
+  const statusCode = error?.code || error?.response?.statusCode || null
+  const responseBody = error?.response?.body || null
+  const firstError = responseBody?.errors?.[0] || null
+  const message = firstError?.message || error?.message || 'Unknown email error'
 
   return {
-    message: err?.message ?? 'Unknown SendGrid error',
-    statusCode: err?.response?.statusCode,
-    body: err?.response?.body,
-    headers: err?.response?.headers,
+    statusCode,
+    message,
+    field: firstError?.field || null,
+    help: firstError?.help || null,
+    responseBody,
   }
 }
 
-export const sendQuoteEmail = async (payload: QuoteEmailInput): Promise<QuoteEmailResult> => {
+const inferLikelyCause = ({ statusCode, message }) => {
+  const lower = String(message || '').toLowerCase()
+  if (statusCode === 401 || lower.includes('permission') || lower.includes('unauthorized')) {
+    return 'Invalid or unauthorized SENDGRID_API_KEY'
+  }
+  if (
+    statusCode === 403 &&
+    (lower.includes('verified sender') ||
+      lower.includes('from address') ||
+      lower.includes('sender identity'))
+  ) {
+    return 'SENDGRID_FROM is not a verified sender identity in SendGrid'
+  }
+  if (statusCode === 429) {
+    return 'SendGrid rate limit exceeded'
+  }
+  return null
+}
+
+export async function sendQuoteEmail(payload) {
   const provider = (process.env.EMAIL_PROVIDER || 'SENDGRID').toUpperCase()
   if (provider !== 'SENDGRID') {
-    return { provider: 'DISABLED' }
+    return {
+      ok: true,
+      skipped: true,
+      provider,
+      reason: 'Email provider is not SENDGRID',
+    }
   }
 
   const apiKey = process.env.SENDGRID_API_KEY
   const from = process.env.SENDGRID_FROM
-  const to = process.env.ADMIN_EMAIL || 'bathroomsheli@gmail.com'
+  const to = 'bathroomsheli@gmail.com'
 
   if (!apiKey || !from || !to) {
-    throw new QuoteEmailError('Email configuration is missing', {
-      provider,
-      missing: {
-        SENDGRID_API_KEY: !apiKey,
-        SENDGRID_FROM: !from,
-        ADMIN_EMAIL: !to,
-      },
-    })
+    throw new Error('Email configuration is missing')
   }
 
   sgMail.setApiKey(apiKey)
@@ -140,19 +123,28 @@ export const sendQuoteEmail = async (payload: QuoteEmailInput): Promise<QuoteEma
     })
 
     return {
-      provider: 'SENDGRID',
+      ok: true,
+      skipped: false,
+      provider,
       to,
       from,
-      statusCode: response?.statusCode,
-      messageId: response?.headers?.['x-message-id'],
+      statusCode: response?.statusCode || null,
+      messageId:
+        response?.headers?.['x-message-id'] ||
+        response?.headers?.['X-Message-Id'] ||
+        null,
     }
   } catch (error) {
-    const sendgrid = normalizeError(error)
-    throw new QuoteEmailError('Failed to send quote email', {
-      provider: 'SENDGRID',
+    const sendgridError = extractSendgridError(error)
+    const likelyCause = inferLikelyCause(sendgridError)
+    const wrappedError = new Error(`SendGrid send failed: ${sendgridError.message}`)
+    wrappedError.details = {
+      provider,
       to,
       from,
-      ...sendgrid,
-    })
+      ...sendgridError,
+      likelyCause,
+    }
+    throw wrappedError
   }
 }

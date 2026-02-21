@@ -23,21 +23,6 @@ function Home() {
               <Link className="button primary hero-primary" to="/contact">
                 {strings.home.hero.primaryCta}
               </Link>
-              <div className="hero-phone-row">
-                <a
-                  className="button secondary hero-phone-button"
-                  href="tel:0533441353"
-                  aria-label="Call 0533441353"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M6.6 10.8a15.2 15.2 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24 11.1 11.1 0 0 0 3.48.56 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.26a1 1 0 0 1 1 1 11.1 11.1 0 0 0 .56 3.48 1 1 0 0 1-.24 1z" />
-                  </svg>
-                  <span className="sr-only">{strings.home.hero.secondaryCta}</span>
-                </a>
-                <a className="hero-phone-number" href="tel:0533441353">
-                  0533441353
-                </a>
-              </div>
             </div>
           </div>
         </div>

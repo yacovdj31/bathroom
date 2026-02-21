@@ -33,7 +33,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [language])
 
   const value = useMemo<I18nContextValue>(() => {
-    const strings = language === 'he' ? he : en
+    const strings = (language === 'he' ? he : en) as Strings
     return { language, strings, setLanguage, isRTL: false }
   }, [language])
 

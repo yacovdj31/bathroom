@@ -1,5 +1,5 @@
 export const he = {
-  brand: 'ג׳והייבן',
+  brand: 'bathroomsheli.com',
   brandMark: 'ג״ה',
   nav: {
     links: [
@@ -8,8 +8,6 @@ export const he = {
       { label: 'אודות', path: '/about' },
       { label: 'צור קשר', path: '/contact' },
     ],
-    phone: '053-344-1353',
-    phoneLabel: 'חיוג',
     cta: 'בקשת הצעת מחיר',
     langLabel: 'שפה',
     lang: { en: 'EN', he: 'HE' },
@@ -22,7 +20,7 @@ export const he = {
       subtitle:
         'ג׳והייבן מספקת נגררי שירותים פרימיום לחתונות, הפקות ואירועי חברה. אספקה מהירה, התקנה נקייה וחוויית אורחים מצוינת.',
       primaryCta: 'בקשת הצעת מחיר',
-      secondaryCta: 'התקשרו עכשיו',
+      secondaryCta: 'שלחו אימייל',
     },
     badges: [
       'גימור יוקרתי',
@@ -168,10 +166,9 @@ export const he = {
   },
   contact: {
     title: 'צרו קשר ישירות עם הבעלים',
-    subtitle: 'מענה מהיר בטלפון או בטופס. פשוט ונוח.',
+    subtitle: 'מענה מהיר באימייל או בטופס. פשוט ונוח.',
     cards: [
-      { title: 'טלפון', text: '053-344-1353' },
-      { title: 'אימייל', text: 'hello@jewhaven.co.il' },
+      { title: 'אימייל', text: 'bathroomsheli@gmail.com' },
       { title: 'זמן תגובה', text: 'בדרך כלל בתוך כמה שעות' },
     ],
   },
@@ -179,7 +176,6 @@ export const he = {
     fields: {
       fullName: 'שם מלא',
       email: 'אימייל',
-      phone: 'טלפון',
       eventDate: 'תאריך האירוע',
       cityOrArea: 'עיר או אזור',
       trailerType: 'סוג הנגרר',
@@ -197,7 +193,6 @@ export const he = {
     errors: {
       fullName: 'נא להזין שם מלא.',
       email: 'נא להזין אימייל תקין.',
-      phone: 'נא להזין מספר טלפון.',
       eventDate: 'נא לבחור תאריך.',
       cityOrArea: 'נא להזין עיר או אזור.',
       trailerType: 'נא לבחור סוג נגרר.',
@@ -211,8 +206,8 @@ export const he = {
     serviceTitle: 'אזורי שירות',
     serviceText: 'פריסה ארצית עם דגש על תל אביב והמרכז.',
     contactTitle: 'צור קשר',
-    email: 'hello@jewhaven.co.il',
-    phone: '053-344-1353',
+    email: 'bathroomsheli@gmail.com',
     note: '© 2026 ג׳והייבן. כל הזכויות שמורות.',
   },
 } as const
+
