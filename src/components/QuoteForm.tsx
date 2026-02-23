@@ -85,10 +85,15 @@ function QuoteForm() {
 
     try {
       setStatus('submitting')
+      const compatPayload = {
+        ...values,
+        fullName: `${values.firstName} ${values.lastName}`.trim(),
+        cityOrArea: '',
+      }
       const response = await fetch('/api/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
+        body: JSON.stringify(compatPayload),
         signal: controller.signal,
       })
       if (!response.ok) {

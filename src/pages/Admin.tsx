@@ -79,6 +79,13 @@ const toTsvRow = (item: QuoteItem) => [
   formatDateTime(item.createdAt),
 ].join('\t')
 
+const getRowTone = (item: QuoteItem) => {
+  if (item.paidFully) return 'row-paid-full'
+  if (item.paidDownpayment) return 'row-paid-down'
+  if (!item.answered) return 'row-open'
+  return 'row-looked-over'
+}
+
 function Admin() {
   const [codeInput, setCodeInput] = useState('')
   const [code, setCode] = useState('')
@@ -152,6 +159,18 @@ function Admin() {
     }
   }
 
+  const resetFilters = () => {
+    setSearch('')
+    setTrailerFilter('all')
+    setStatusFilter('all')
+    setPaymentFilter('all')
+    setFlexDateFilter('all')
+    setCreatedFrom('')
+    setCreatedTo('')
+    setEventFrom('')
+    setEventTo('')
+  }
+
   const patchQuote = async (id: string, patch: Partial<QuoteItem>) => {
     if (!code) return
     setUpdatingId(id)
@@ -203,8 +222,7 @@ function Admin() {
         if (statusFilter === 'answered' && !item.answered) return false
 
         if (paymentFilter === 'none' && (item.paidDownpayment || item.paidFully)) return false
-        if (paymentFilter === 'downpayment' && (!item.paidDownpayment || item.paidFully))
-          return false
+        if (paymentFilter === 'downpayment' && (!item.paidDownpayment || item.paidFully)) return false
         if (paymentFilter === 'full' && !item.paidFully) return false
 
         if (flexDateFilter === 'yes' && !item.wantsAnotherDate) return false
@@ -230,6 +248,37 @@ function Admin() {
     eventFrom,
     eventTo,
   ])
+
+  const activeFilterCount = useMemo(() => {
+    return [
+      Boolean(search.trim()),
+      trailerFilter !== 'all',
+      statusFilter !== 'all',
+      paymentFilter !== 'all',
+      flexDateFilter !== 'all',
+      Boolean(createdFrom),
+      Boolean(createdTo),
+      Boolean(eventFrom),
+      Boolean(eventTo),
+    ].filter(Boolean).length
+  }, [
+    search,
+    trailerFilter,
+    statusFilter,
+    paymentFilter,
+    flexDateFilter,
+    createdFrom,
+    createdTo,
+    eventFrom,
+    eventTo,
+  ])
+
+  const summary = useMemo(() => {
+    const openCount = quotes.filter((item) => !item.answered).length
+    const downpaymentCount = quotes.filter((item) => item.paidDownpayment && !item.paidFully).length
+    const fullCount = quotes.filter((item) => item.paidFully).length
+    return { openCount, downpaymentCount, fullCount }
+  }, [quotes])
 
   const copyText = async (text: string, message: string) => {
     if (!text) return
@@ -291,7 +340,7 @@ function Admin() {
         <div className="admin-toolbar">
           <div>
             <h1>Admin Requests</h1>
-            <p>{filteredQuotes.length} request(s)</p>
+            <p>{filteredQuotes.length} request(s) shown</p>
           </div>
           <div className="admin-toolbar-actions">
             <button className="button secondary" type="button" onClick={() => fetchQuotes(code)}>
@@ -303,66 +352,101 @@ function Admin() {
           </div>
         </div>
 
-        <div className="admin-filters">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search name, email, phone"
-          />
-          <select value={trailerFilter} onChange={(event) => setTrailerFilter(event.target.value)}>
-            <option value="all">All Trailers</option>
-            <option value="2-stall">2-Stall</option>
-            <option value="3-stall">3-Stall</option>
-          </select>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            <option value="all">All Statuses</option>
-            <option value="open">Open</option>
-            <option value="answered">Answered</option>
-          </select>
-          <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
-            <option value="all">All Payments</option>
-            <option value="none">No Payment</option>
-            <option value="downpayment">Downpayment</option>
-            <option value="full">Paid Fully</option>
-          </select>
-          <select value={flexDateFilter} onChange={(event) => setFlexDateFilter(event.target.value)}>
-            <option value="all">All Date Flexibility</option>
-            <option value="yes">Wants Another Date</option>
-            <option value="no">Fixed Date</option>
-          </select>
-          <label>
-            Submitted from
-            <input type="date" value={createdFrom} onChange={(event) => setCreatedFrom(event.target.value)} />
-          </label>
-          <label>
-            Submitted to
-            <input type="date" value={createdTo} onChange={(event) => setCreatedTo(event.target.value)} />
-          </label>
-          <label>
-            Event from
-            <input type="date" value={eventFrom} onChange={(event) => setEventFrom(event.target.value)} />
-          </label>
-          <label>
-            Event to
-            <input type="date" value={eventTo} onChange={(event) => setEventTo(event.target.value)} />
-          </label>
-          <button
-            className="button secondary"
-            type="button"
-            onClick={() => {
-              setSearch('')
-              setTrailerFilter('all')
-              setStatusFilter('all')
-              setPaymentFilter('all')
-              setFlexDateFilter('all')
-              setCreatedFrom('')
-              setCreatedTo('')
-              setEventFrom('')
-              setEventTo('')
-            }}
-          >
-            Clear Filters
-          </button>
+        <div className="admin-summary">
+          <span className="admin-chip chip-open">Open: {summary.openCount}</span>
+          <span className="admin-chip chip-down">Downpayment: {summary.downpaymentCount}</span>
+          <span className="admin-chip chip-full">Paid Fully: {summary.fullCount}</span>
+          <span className="admin-chip">Total: {quotes.length}</span>
+        </div>
+
+        <div className="admin-filters-card">
+          <div className="admin-filters-head">
+            <h2>Filters</h2>
+            <span className="muted">{activeFilterCount} active</span>
+          </div>
+
+          <div className="admin-quick-filters">
+            <button className="button secondary" type="button" onClick={() => setStatusFilter('open')}>
+              Open Only
+            </button>
+            <button className="button secondary" type="button" onClick={() => setPaymentFilter('none')}>
+              Unpaid Only
+            </button>
+            <button className="button secondary" type="button" onClick={() => setPaymentFilter('full')}>
+              Paid Fully
+            </button>
+            <button className="button secondary" type="button" onClick={resetFilters}>
+              Clear Filters
+            </button>
+          </div>
+
+          <div className="admin-filters-grid">
+            <label>
+              Search
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Name, email, phone"
+              />
+            </label>
+
+            <label>
+              Trailer
+              <select value={trailerFilter} onChange={(event) => setTrailerFilter(event.target.value)}>
+                <option value="all">All Trailers</option>
+                <option value="2-stall">2-Stall</option>
+                <option value="3-stall">3-Stall</option>
+              </select>
+            </label>
+
+            <label>
+              Status
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                <option value="all">All Statuses</option>
+                <option value="open">Open</option>
+                <option value="answered">Looked Over</option>
+              </select>
+            </label>
+
+            <label>
+              Payment
+              <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
+                <option value="all">All Payments</option>
+                <option value="none">No Payment</option>
+                <option value="downpayment">Downpayment</option>
+                <option value="full">Paid Fully</option>
+              </select>
+            </label>
+
+            <label>
+              Flexible Date
+              <select value={flexDateFilter} onChange={(event) => setFlexDateFilter(event.target.value)}>
+                <option value="all">All</option>
+                <option value="yes">Wants Another Date</option>
+                <option value="no">Fixed Date</option>
+              </select>
+            </label>
+
+            <label>
+              Submitted From
+              <input type="date" value={createdFrom} onChange={(event) => setCreatedFrom(event.target.value)} />
+            </label>
+
+            <label>
+              Submitted To
+              <input type="date" value={createdTo} onChange={(event) => setCreatedTo(event.target.value)} />
+            </label>
+
+            <label>
+              Event From
+              <input type="date" value={eventFrom} onChange={(event) => setEventFrom(event.target.value)} />
+            </label>
+
+            <label>
+              Event To
+              <input type="date" value={eventTo} onChange={(event) => setEventTo(event.target.value)} />
+            </label>
+          </div>
         </div>
 
         <div className="admin-export">
@@ -393,13 +477,11 @@ function Admin() {
                 <th>Last Name</th>
                 <th>Email</th>
                 <th>Phone Number</th>
-                <th>City / Area</th>
                 <th>Trailer</th>
-                <th>Message</th>
                 <th>Paid Downpayment</th>
                 <th>Paid Fully</th>
                 <th>Wants Another Date</th>
-                <th>Open</th>
+                <th>Looked Over</th>
                 <th>Event Date</th>
                 <th>Submitted At</th>
               </tr>
@@ -408,15 +490,13 @@ function Admin() {
               {filteredQuotes.map((item) => {
                 const isUpdating = updatingId === item._id
                 return (
-                  <tr key={item._id} className={!item.answered ? 'row-open' : undefined}>
+                  <tr key={item._id} className={getRowTone(item)}>
                     <td>{item.firstName}</td>
                     <td>{item.lastName}</td>
                     <td>{item.email}</td>
                     <td>{item.phone}</td>
-                    <td>{item.cityOrArea || '-'}</td>
                     <td>{item.trailerType}</td>
-                    <td>{item.message || '-'}</td>
-                    <td className={item.paidDownpayment ? 'cell-paid-down' : undefined}>
+                    <td>
                       <input
                         type="checkbox"
                         checked={item.paidDownpayment}
@@ -429,7 +509,7 @@ function Admin() {
                         }
                       />
                     </td>
-                    <td className={item.paidFully ? 'cell-paid-full' : undefined}>
+                    <td>
                       <input
                         type="checkbox"
                         checked={item.paidFully}
@@ -447,20 +527,18 @@ function Admin() {
                         type="checkbox"
                         checked={item.wantsAnotherDate}
                         disabled={isUpdating}
-                        onChange={(event) =>
-                          patchQuote(item._id, { wantsAnotherDate: event.target.checked })
-                        }
+                        onChange={(event) => patchQuote(item._id, { wantsAnotherDate: event.target.checked })}
                       />
                     </td>
-                    <td className={!item.answered ? 'cell-open' : undefined}>
-                      <input
-                        type="checkbox"
-                        checked={!item.answered}
+                    <td>
+                      <button
+                        className={`review-toggle ${item.answered ? 'is-on' : ''}`}
+                        type="button"
                         disabled={isUpdating}
-                        onChange={(event) =>
-                          patchQuote(item._id, { answered: !event.target.checked })
-                        }
-                      />
+                        onClick={() => patchQuote(item._id, { answered: !item.answered })}
+                      >
+                        {item.answered ? 'Looked Over' : 'Mark Looked Over'}
+                      </button>
                     </td>
                     <td>{item.eventDate}</td>
                     <td>{formatDateTime(item.createdAt)}</td>

@@ -711,19 +711,19 @@ main {
 
 .admin-shell {
   min-height: 100vh;
-  padding: 28px 16px;
-  background: linear-gradient(160deg, #e8edf5, #d8e1ec);
+  padding: 24px 14px;
+  background: linear-gradient(160deg, #eef3f9, #dde6f1);
 }
 
 .admin-login-card,
 .admin-panel {
   max-width: 1260px;
   margin: 0 auto;
-  background: #f9fbff;
-  border: 1px solid rgba(15, 18, 22, 0.14);
+  background: #fbfdff;
+  border: 1px solid rgba(15, 18, 22, 0.1);
   border-radius: 20px;
-  box-shadow: 0 18px 34px rgba(16, 28, 48, 0.14);
-  padding: 20px;
+  box-shadow: 0 16px 34px rgba(16, 28, 48, 0.11);
+  padding: 18px;
 }
 
 .admin-login-card {
@@ -748,7 +748,7 @@ main {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
 }
 
 .admin-toolbar h1 {
@@ -760,31 +760,93 @@ main {
   gap: 8px;
 }
 
-.admin-filters {
-  margin-top: 18px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+.admin-summary {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-chip {
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid rgba(15, 18, 22, 0.12);
+  background: #fff;
+}
+
+.chip-open {
+  background: rgba(167, 228, 189, 0.5);
+}
+
+.chip-down {
+  background: rgba(173, 212, 245, 0.48);
+}
+
+.chip-full {
+  background: rgba(72, 121, 197, 0.35);
+}
+
+.admin-filters-card {
+  margin-top: 16px;
+  border: 1px solid rgba(15, 18, 22, 0.12);
+  border-radius: 16px;
+  background: #f5f9ff;
+  padding: 12px;
+}
+
+.admin-filters-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
 }
 
-.admin-filters input,
-.admin-filters select,
-.admin-filters label {
+.admin-filters-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.admin-quick-filters {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-quick-filters .button {
+  padding: 8px 14px;
+  border-radius: 11px;
+  font-size: 0.84rem;
+}
+
+.admin-filters-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.admin-filters-grid input,
+.admin-filters-grid select,
+.admin-filters-grid label {
   width: 100%;
 }
 
-.admin-filters label {
+.admin-filters-grid label {
   display: grid;
   gap: 4px;
-  font-size: 0.8rem;
+  font-size: 0.79rem;
+  font-weight: 600;
   color: var(--text-muted);
 }
 
-.admin-filters input,
-.admin-filters select {
+.admin-filters-grid input,
+.admin-filters-grid select {
   border-radius: 10px;
-  border: 1px solid rgba(15, 18, 22, 0.18);
-  padding: 9px 10px;
+  border: 1px solid rgba(15, 18, 22, 0.14);
+  padding: 10px 11px;
   font-size: 0.9rem;
   background: #fff;
 }
@@ -806,30 +868,31 @@ main {
 
 .admin-table-wrap {
   overflow: auto;
-  border: 1px solid rgba(15, 18, 22, 0.15);
+  border: 1px solid rgba(15, 18, 22, 0.12);
   border-radius: 14px;
 }
 
 .admin-table {
   width: 100%;
-  min-width: 1320px;
+  min-width: 1180px;
   border-collapse: collapse;
   background: #fff;
 }
 
 .admin-table th,
 .admin-table td {
-  border-bottom: 1px solid rgba(15, 18, 22, 0.1);
-  padding: 10px 8px;
+  border-bottom: 1px solid rgba(15, 18, 22, 0.08);
+  padding: 10px 10px;
   text-align: left;
   font-size: 0.88rem;
+  transition: background var(--transition);
 }
 
 .admin-table th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: #edf3fb;
+  background: #ebf2fc;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-size: 0.74rem;
@@ -840,20 +903,35 @@ main {
   height: 17px;
 }
 
-.row-open {
-  background: rgba(131, 224, 173, 0.14);
+.review-toggle {
+  border: 1px solid rgba(15, 18, 22, 0.16);
+  background: #fff;
+  color: var(--text-strong);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.cell-open {
-  background: rgba(153, 233, 180, 0.28);
+.review-toggle.is-on {
+  background: #fff;
 }
 
-.cell-paid-down {
-  background: rgba(165, 205, 255, 0.3);
+.row-open td {
+  background: rgba(166, 231, 188, 0.34);
 }
 
-.cell-paid-full {
-  background: rgba(43, 95, 198, 0.28);
+.row-paid-down td {
+  background: rgba(173, 212, 245, 0.38);
+}
+
+.row-paid-full td {
+  background: rgba(73, 125, 202, 0.38);
+}
+
+.row-looked-over td {
+  background: #fff;
 }
 
 @keyframes spin {
