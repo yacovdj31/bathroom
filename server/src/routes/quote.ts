@@ -1,22 +1,8 @@
 import { Router } from 'express'
 import crypto from 'crypto'
-import { z } from 'zod'
 import { Quote } from '../models/Quote.js'
 
 const router = Router()
-
-const quoteSchema = z.object({
-  firstName: z.string().trim().min(1).optional(),
-  lastName: z.string().trim().min(1).optional(),
-  fullName: z.string().trim().min(1).optional(),
-  email: z.string().email(),
-  phone: z.union([z.string(), z.number()]).transform((value) => String(value).trim()),
-  eventDate: z.string().min(1),
-  cityOrArea: z.string().optional().or(z.literal('')),
-  trailerType: z.string().min(1),
-  message: z.string().optional().or(z.literal('')),
-  wantsAnotherDate: z.boolean().optional(),
-})
 
 const normalizeEventDate = (value: string) => {
   const date = String(value || '').trim()
@@ -35,23 +21,43 @@ const normalizeTrailerType = (value: string) => {
   return raw
 }
 
+const asText = (value: unknown) => {
+  if (value === undefined || value === null) return ''
+  return String(value).trim()
+}
+
+const asBoolean = (value: unknown) => {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on'
+  }
+  if (typeof value === 'number') return value === 1
+  return false
+}
+
 router.post('/', async (req, res) => {
   const requestId = crypto.randomUUID()
-  const parseResult = quoteSchema.safeParse(req.body)
-  if (!parseResult.success) {
-    const flattened = parseResult.error.flatten()
-    console.warn('Quote validation failed', { requestId, fieldErrors: flattened.fieldErrors })
+  const body = req.body as Record<string, unknown> | undefined
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return res.status(400).json({
       ok: false,
       requestId,
       reason: 'Invalid form payload',
-      error: flattened,
+      error: 'Body must be a JSON object',
     })
   }
 
-  let firstName = parseResult.data.firstName?.trim() || ''
-  let lastName = parseResult.data.lastName?.trim() || ''
-  const fallbackFullName = parseResult.data.fullName?.trim() || ''
+  const email = asText(body.email)
+  const phone = asText(body.phone)
+  const eventDate = normalizeEventDate(asText(body.eventDate))
+  const trailerType = normalizeTrailerType(asText(body.trailerType || body.trailer))
+  const cityOrArea = asText(body.cityOrArea || body.city || body.area)
+  const message = asText(body.message)
+  const wantsAnotherDate = asBoolean(body.wantsAnotherDate)
+  let firstName = asText(body.firstName)
+  let lastName = asText(body.lastName)
+  const fallbackFullName = asText(body.fullName || body.name)
   if ((!firstName || !lastName) && fallbackFullName) {
     const parts = fallbackFullName.split(/\s+/).filter(Boolean)
     if (!firstName) firstName = parts[0] || ''
@@ -61,14 +67,21 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ ok: false, requestId, error: 'firstName and lastName are required' })
   }
 
-  const trailerType = normalizeTrailerType(parseResult.data.trailerType)
-  const eventDate = normalizeEventDate(parseResult.data.eventDate)
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ ok: false, requestId, reason: 'Invalid email' })
+  }
+  if (!phone || phone.length < 6) {
+    return res.status(400).json({ ok: false, requestId, reason: 'Invalid phone number' })
+  }
+  if (!eventDate) {
+    return res.status(400).json({ ok: false, requestId, reason: 'Event date is required' })
+  }
   if (!['2-stall', '3-stall'].includes(trailerType)) {
     return res.status(400).json({
       ok: false,
       requestId,
       reason: 'Invalid trailer type',
-      error: { trailerType: parseResult.data.trailerType },
+      error: { trailerType: body.trailerType || body.trailer },
     })
   }
 
@@ -76,13 +89,13 @@ router.post('/', async (req, res) => {
     firstName,
     lastName,
     fullName: `${firstName} ${lastName}`.trim(),
-    email: parseResult.data.email.trim(),
-    phone: parseResult.data.phone.trim(),
+    email,
+    phone,
     eventDate,
-    cityOrArea: parseResult.data.cityOrArea?.trim() || '',
+    cityOrArea,
     trailerType,
-    message: parseResult.data.message?.trim() || '',
-    wantsAnotherDate: Boolean(parseResult.data.wantsAnotherDate),
+    message,
+    wantsAnotherDate,
     paidDownpayment: false,
     paidFully: false,
     answered: false,

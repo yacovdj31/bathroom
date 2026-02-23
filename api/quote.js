@@ -1,20 +1,6 @@
-import { z } from 'zod'
 import crypto from 'node:crypto'
 import { connectToDatabase } from './lib/mongo.js'
 import { Quote } from './lib/quote-model.js'
-
-const quoteSchema = z.object({
-  firstName: z.string().trim().min(1).optional(),
-  lastName: z.string().trim().min(1).optional(),
-  fullName: z.string().trim().min(1).optional(),
-  email: z.string().email(),
-  phone: z.union([z.string(), z.number()]).transform((value) => String(value).trim()),
-  eventDate: z.string().min(1),
-  cityOrArea: z.string().optional().or(z.literal('')),
-  trailerType: z.string().min(1),
-  message: z.string().optional().or(z.literal('')),
-  wantsAnotherDate: z.boolean().optional(),
-})
 
 const normalizeEventDate = (value) => {
   const date = String(value || '').trim()
@@ -24,6 +10,21 @@ const normalizeEventDate = (value) => {
   if (!ddmmyyyy) return date
   const [, d, m, y] = ddmmyyyy
   return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+}
+
+const asText = (value) => {
+  if (value === undefined || value === null) return ''
+  return String(value).trim()
+}
+
+const asBoolean = (value) => {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on'
+  }
+  if (typeof value === 'number') return value === 1
+  return false
 }
 
 const normalizeTrailerType = (value) => {
@@ -61,27 +62,26 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'Method not allowed', requestId })
   }
 
-  const parseResult = quoteSchema.safeParse(normalizeBody(req.body))
-  if (!parseResult.success) {
-    const flattened = parseResult.error.flatten()
-    console.warn(
-      JSON.stringify({
-        at: 'quote.validation_failed',
-        requestId,
-        fieldErrors: flattened.fieldErrors,
-      }),
-    )
+  const body = normalizeBody(req.body)
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return res.status(400).json({
       ok: false,
       requestId,
       reason: 'Invalid form payload',
-      error: flattened,
+      error: 'Body must be a JSON object',
     })
   }
 
-  let firstName = parseResult.data.firstName?.trim() || ''
-  let lastName = parseResult.data.lastName?.trim() || ''
-  const fallbackFullName = parseResult.data.fullName?.trim() || ''
+  const email = asText(body.email)
+  const phone = asText(body.phone)
+  const eventDate = normalizeEventDate(asText(body.eventDate))
+  const trailerType = normalizeTrailerType(asText(body.trailerType || body.trailer))
+  const cityOrArea = asText(body.cityOrArea || body.city || body.area)
+  const message = asText(body.message)
+  const wantsAnotherDate = asBoolean(body.wantsAnotherDate)
+  let firstName = asText(body.firstName)
+  let lastName = asText(body.lastName)
+  const fallbackFullName = asText(body.fullName || body.name)
 
   if ((!firstName || !lastName) && fallbackFullName) {
     const parts = fallbackFullName.split(/\s+/).filter(Boolean)
@@ -101,14 +101,21 @@ export default async function handler(req, res) {
     })
   }
 
-  const trailerType = normalizeTrailerType(parseResult.data.trailerType)
-  const eventDate = normalizeEventDate(parseResult.data.eventDate)
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ ok: false, requestId, reason: 'Invalid email' })
+  }
+  if (!phone || phone.length < 6) {
+    return res.status(400).json({ ok: false, requestId, reason: 'Invalid phone number' })
+  }
+  if (!eventDate) {
+    return res.status(400).json({ ok: false, requestId, reason: 'Event date is required' })
+  }
   if (!['2-stall', '3-stall'].includes(trailerType)) {
     return res.status(400).json({
       ok: false,
       requestId,
       reason: 'Invalid trailer type',
-      error: { trailerType: parseResult.data.trailerType },
+      error: { trailerType: body.trailerType || body.trailer },
     })
   }
 
@@ -117,13 +124,13 @@ export default async function handler(req, res) {
     firstName,
     lastName,
     fullName: `${firstName} ${lastName}`.trim(),
-    email: parseResult.data.email.trim(),
-    phone: parseResult.data.phone.trim(),
+    email,
+    phone,
     eventDate,
-    cityOrArea: parseResult.data.cityOrArea?.trim() || '',
+    cityOrArea,
     trailerType,
-    message: parseResult.data.message?.trim() || '',
-    wantsAnotherDate: Boolean(parseResult.data.wantsAnotherDate),
+    message,
+    wantsAnotherDate,
     paidDownpayment: false,
     paidFully: false,
     answered: false,
