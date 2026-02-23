@@ -61,6 +61,11 @@ const normalizeError = (error: unknown) => {
 
 export const sendQuoteEmail = async (payload: QuoteEmailInput): Promise<QuoteEmailResult> => {
   const provider = (process.env.EMAIL_PROVIDER || 'SENDGRID').toUpperCase()
+  const sendingEnabled = String(process.env.SEND_QUOTE_EMAIL || '').toLowerCase() === 'true'
+  if (!sendingEnabled) {
+    return { provider: 'DISABLED' }
+  }
+
   if (provider !== 'SENDGRID') {
     return { provider: 'DISABLED' }
   }

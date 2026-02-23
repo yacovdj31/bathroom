@@ -3,6 +3,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import mongoose from 'mongoose'
 import quoteRoutes from './routes/quote.js'
+import adminRoutes from './routes/admin.js'
 
 dotenv.config()
 
@@ -17,6 +18,7 @@ app.get('/api/health', (_req, res) => {
 })
 
 app.use('/api/quote', quoteRoutes)
+app.use('/api/admin', adminRoutes)
 
 const start = async () => {
   const uri = process.env.MONGODB_URI

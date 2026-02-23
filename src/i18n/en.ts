@@ -175,10 +175,13 @@ export const en = {
   form: {
     fields: {
       fullName: 'Full name',
+      firstName: 'First name',
+      lastName: 'Last name',
       email: 'Email',
+      phone: 'Phone number',
       eventDate: 'Event date',
-      cityOrArea: 'City or area',
       trailerType: 'Trailer type',
+      wantsAnotherDate: 'Flexible date (I can move to another date)',
       message: 'Message (optional)',
     },
     trailerOptions: {
@@ -192,9 +195,11 @@ export const en = {
     sendAnother: 'Send another request',
     errors: {
       fullName: 'Please enter your name.',
+      firstName: 'Please enter your first name.',
+      lastName: 'Please enter your last name.',
       email: 'Please enter a valid email.',
+      phone: 'Please enter a valid phone number.',
       eventDate: 'Please choose a date.',
-      cityOrArea: 'Please enter a city or area.',
       trailerType: 'Please select a trailer.',
       submit: 'Something went wrong. Please try again.',
     },

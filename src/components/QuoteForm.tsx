@@ -2,20 +2,24 @@ import { useState } from 'react'
 import { useI18n } from '../i18n'
 
 type QuoteFormValues = {
-  fullName: string
+  firstName: string
+  lastName: string
   email: string
+  phone: string
   eventDate: string
-  cityOrArea: string
   trailerType: string
+  wantsAnotherDate: boolean
   message: string
 }
 
 const initialValues: QuoteFormValues = {
-  fullName: '',
+  firstName: '',
+  lastName: '',
   email: '',
+  phone: '',
   eventDate: '',
-  cityOrArea: '',
   trailerType: '',
+  wantsAnotherDate: false,
   message: '',
 }
 
@@ -25,22 +29,47 @@ function QuoteForm() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle')
   const [submitError, setSubmitError] = useState('')
+  const fieldLabels = {
+    firstName: strings.form.fields.firstName || strings.form.fields.fullName || 'First name',
+    lastName: strings.form.fields.lastName || 'Last name',
+    email: strings.form.fields.email,
+    phone: strings.form.fields.phone || 'Phone number',
+    eventDate: strings.form.fields.eventDate,
+    trailerType: strings.form.fields.trailerType,
+    wantsAnotherDate: strings.form.fields.wantsAnotherDate || 'Flexible date',
+    message: strings.form.fields.message,
+  }
+  const fieldErrors = {
+    firstName: strings.form.errors.firstName || strings.form.errors.fullName || 'Required',
+    lastName: strings.form.errors.lastName || 'Required',
+    email: strings.form.errors.email,
+    phone: strings.form.errors.phone || 'Required',
+    eventDate: strings.form.errors.eventDate,
+    trailerType: strings.form.errors.trailerType,
+    submit: strings.form.errors.submit,
+  }
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
     const { name, value } = event.target
+    const target = event.target
+    if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+      setValues((prev) => ({ ...prev, [name]: target.checked }))
+      return
+    }
     setValues((prev) => ({ ...prev, [name]: value }))
   }
 
   const validate = () => {
     const nextErrors: Record<string, string> = {}
-    if (!values.fullName.trim()) nextErrors.fullName = strings.form.errors.fullName
-    if (!values.email.trim()) nextErrors.email = strings.form.errors.email
-    if (!values.eventDate.trim()) nextErrors.eventDate = strings.form.errors.eventDate
-    if (!values.cityOrArea.trim()) nextErrors.cityOrArea = strings.form.errors.cityOrArea
+    if (!values.firstName.trim()) nextErrors.firstName = fieldErrors.firstName
+    if (!values.lastName.trim()) nextErrors.lastName = fieldErrors.lastName
+    if (!values.email.trim()) nextErrors.email = fieldErrors.email
+    if (!values.phone.trim()) nextErrors.phone = fieldErrors.phone
+    if (!values.eventDate.trim()) nextErrors.eventDate = fieldErrors.eventDate
     if (!values.trailerType.trim())
-      nextErrors.trailerType = strings.form.errors.trailerType
+      nextErrors.trailerType = fieldErrors.trailerType
     return nextErrors
   }
 
@@ -82,8 +111,8 @@ function QuoteForm() {
     } catch (error) {
       const message =
         error instanceof Error && error.message && error.message !== 'Request failed'
-          ? `${strings.form.errors.submit} (${error.message})`
-          : strings.form.errors.submit
+          ? `${fieldErrors.submit} (${error.message})`
+          : fieldErrors.submit
       setSubmitError(message)
       setStatus('idle')
     } finally {
@@ -113,19 +142,37 @@ function QuoteForm() {
   return (
     <form className="quote-form" onSubmit={handleSubmit} noValidate>
       <div className="field">
-        <label htmlFor="fullName">{strings.form.fields.fullName}</label>
+        <label htmlFor="firstName">{fieldLabels.firstName}</label>
         <input
-          id="fullName"
-          name="fullName"
+          id="firstName"
+          name="firstName"
           type="text"
-          value={values.fullName}
+          value={values.firstName}
           onChange={handleChange}
-          aria-invalid={Boolean(errors.fullName)}
-          aria-describedby={errors.fullName ? 'fullName-error' : undefined}
+          aria-invalid={Boolean(errors.firstName)}
+          aria-describedby={errors.firstName ? 'firstName-error' : undefined}
         />
-        {errors.fullName && (
-          <span className="field-error" id="fullName-error">
-            {errors.fullName}
+        {errors.firstName && (
+          <span className="field-error" id="firstName-error">
+            {errors.firstName}
+          </span>
+        )}
+      </div>
+
+      <div className="field">
+        <label htmlFor="lastName">{fieldLabels.lastName}</label>
+        <input
+          id="lastName"
+          name="lastName"
+          type="text"
+          value={values.lastName}
+          onChange={handleChange}
+          aria-invalid={Boolean(errors.lastName)}
+          aria-describedby={errors.lastName ? 'lastName-error' : undefined}
+        />
+        {errors.lastName && (
+          <span className="field-error" id="lastName-error">
+            {errors.lastName}
           </span>
         )}
       </div>
@@ -144,7 +191,20 @@ function QuoteForm() {
       </div>
 
       <div className="field">
-        <label htmlFor="eventDate">{strings.form.fields.eventDate}</label>
+        <label htmlFor="phone">{fieldLabels.phone}</label>
+        <input
+          id="phone"
+          name="phone"
+          type="tel"
+          value={values.phone}
+          onChange={handleChange}
+          aria-invalid={Boolean(errors.phone)}
+        />
+        {errors.phone && <span className="field-error">{errors.phone}</span>}
+      </div>
+
+      <div className="field">
+        <label htmlFor="eventDate">{fieldLabels.eventDate}</label>
         <input
           id="eventDate"
           name="eventDate"
@@ -157,20 +217,7 @@ function QuoteForm() {
       </div>
 
       <div className="field">
-        <label htmlFor="cityOrArea">{strings.form.fields.cityOrArea}</label>
-        <input
-          id="cityOrArea"
-          name="cityOrArea"
-          type="text"
-          value={values.cityOrArea}
-          onChange={handleChange}
-          aria-invalid={Boolean(errors.cityOrArea)}
-        />
-        {errors.cityOrArea && <span className="field-error">{errors.cityOrArea}</span>}
-      </div>
-
-      <div className="field">
-        <label htmlFor="trailerType">{strings.form.fields.trailerType}</label>
+        <label htmlFor="trailerType">{fieldLabels.trailerType}</label>
         <select
           id="trailerType"
           name="trailerType"
@@ -188,7 +235,19 @@ function QuoteForm() {
       </div>
 
       <div className="field field-span">
-        <label htmlFor="message">{strings.form.fields.message}</label>
+        <label className="checkbox-field">
+          <input
+            name="wantsAnotherDate"
+            type="checkbox"
+            checked={values.wantsAnotherDate}
+            onChange={handleChange}
+          />
+          <span>{fieldLabels.wantsAnotherDate}</span>
+        </label>
+      </div>
+
+      <div className="field field-span">
+        <label htmlFor="message">{fieldLabels.message}</label>
         <textarea
           id="message"
           name="message"

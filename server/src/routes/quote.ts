@@ -2,17 +2,20 @@ import { Router } from 'express'
 import crypto from 'crypto'
 import { z } from 'zod'
 import { Quote } from '../models/Quote.js'
-import { QuoteEmailError, sendQuoteEmail } from '../lib/email.js'
 
 const router = Router()
 
 const quoteSchema = z.object({
-  fullName: z.string().min(1),
+  firstName: z.string().trim().min(1).optional(),
+  lastName: z.string().trim().min(1).optional(),
+  fullName: z.string().trim().min(1).optional(),
   email: z.string().email(),
+  phone: z.string().trim().min(6),
   eventDate: z.string().min(1),
-  cityOrArea: z.string().min(1),
+  cityOrArea: z.string().optional().or(z.literal('')),
   trailerType: z.enum(['2-stall', '3-stall']),
   message: z.string().optional().or(z.literal('')),
+  wantsAnotherDate: z.boolean().optional(),
 })
 
 router.post('/', async (req, res) => {
@@ -22,51 +25,53 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ ok: false, requestId, error: parseResult.error.flatten() })
   }
 
-  let createdAt = new Date()
-  try {
-    const quote = await Quote.create(parseResult.data)
-    createdAt = quote.createdAt ?? createdAt
-  } catch (error) {
-    console.error('Quote DB save failed, sending email only', error)
+  let firstName = parseResult.data.firstName?.trim() || ''
+  let lastName = parseResult.data.lastName?.trim() || ''
+  const fallbackFullName = parseResult.data.fullName?.trim() || ''
+  if ((!firstName || !lastName) && fallbackFullName) {
+    const parts = fallbackFullName.split(/\s+/).filter(Boolean)
+    if (!firstName) firstName = parts[0] || ''
+    if (!lastName) lastName = parts.slice(1).join(' ') || 'N/A'
+  }
+  if (!firstName || !lastName) {
+    return res.status(400).json({ ok: false, requestId, error: 'firstName and lastName are required' })
+  }
+
+  const quoteData = {
+    firstName,
+    lastName,
+    fullName: `${firstName} ${lastName}`.trim(),
+    email: parseResult.data.email.trim(),
+    phone: parseResult.data.phone.trim(),
+    eventDate: parseResult.data.eventDate.trim(),
+    cityOrArea: parseResult.data.cityOrArea?.trim() || '',
+    trailerType: parseResult.data.trailerType,
+    message: parseResult.data.message?.trim() || '',
+    wantsAnotherDate: Boolean(parseResult.data.wantsAnotherDate),
+    paidDownpayment: false,
+    paidFully: false,
+    answered: false,
   }
 
   try {
-    const emailResult = await sendQuoteEmail({
-      ...parseResult.data,
-      createdAt,
-    })
-
-    console.log('Quote email status', {
-      requestId,
-      provider: emailResult.provider,
-      statusCode: emailResult.statusCode,
-      messageId: emailResult.messageId,
-      to: emailResult.to,
-      from: emailResult.from,
-    })
+    await Quote.create(quoteData)
   } catch (error) {
-    if (error instanceof QuoteEmailError) {
-      console.error('Quote email failed', {
-        requestId,
-        ...error.details,
-      })
-      return res.status(502).json({
-        ok: false,
-        requestId,
-        error: 'EMAIL_SEND_FAILED',
-        details: error.details,
-      })
-    }
-
-    console.error('Quote email failed (unknown error)', { requestId, error })
+    console.error('Quote DB save failed', error)
     return res.status(500).json({
       ok: false,
       requestId,
-      error: 'EMAIL_UNKNOWN_ERROR',
+      error: 'Unable to save quote request',
     })
   }
 
-  return res.json({ ok: true, requestId })
+  return res.json({
+    ok: true,
+    requestId,
+    email: {
+      skipped: true,
+      reason: 'Email notifications are disabled. Use /admin to view requests.',
+    },
+  })
 })
 
 export default router

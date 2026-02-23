@@ -46,6 +46,16 @@ const inferLikelyCause = ({ statusCode, message }) => {
 
 export async function sendQuoteEmail(payload) {
   const provider = (process.env.EMAIL_PROVIDER || 'SENDGRID').toUpperCase()
+  const sendingEnabled = String(process.env.SEND_QUOTE_EMAIL || '').toLowerCase() === 'true'
+  if (!sendingEnabled) {
+    return {
+      ok: true,
+      skipped: true,
+      provider,
+      reason: 'SEND_QUOTE_EMAIL is disabled',
+    }
+  }
+
   if (provider !== 'SENDGRID') {
     return {
       ok: true,
