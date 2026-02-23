@@ -16,7 +16,6 @@ function Home() {
             alt="Interior view of a restroom trailer"
           />
           <div className="hero-content">
-            <h1>{strings.brand}</h1>
             <p className="eyebrow">{strings.home.hero.eyebrow}</p>
             <p className="subtitle hero-title">{strings.home.hero.title}</p>
             <div className="hero-actions">

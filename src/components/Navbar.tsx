@@ -45,7 +45,10 @@ function Navbar() {
     <header ref={headerRef} className="navbar">
       <div className="navbar-inner">
         <NavLink className="brand" to="/" onClick={() => setMenuOpen(false)}>
-          bathroomsheli.com
+          <span className="brand-mark" aria-hidden="true">
+            BS
+          </span>
+          <span className="brand-text">BathroomSheli</span>
         </NavLink>
 
         <nav className={`nav-links ${menuOpen ? 'is-open' : ''}`} aria-label="Primary">

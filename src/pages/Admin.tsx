@@ -8,12 +8,9 @@ type QuoteItem = {
   fullName: string
   email: string
   phone: string
-  cityOrArea?: string
   trailerType: '2-stall' | '3-stall'
   eventDate: string
   eventEndDate?: string
-  message?: string
-  wantsAnotherDate: boolean
   paidDownpayment: boolean
   paidFully: boolean
   answered: boolean
@@ -30,7 +27,6 @@ type ColumnKey =
   | 'trailerType'
   | 'paidDownpayment'
   | 'paidFully'
-  | 'wantsAnotherDate'
   | 'open'
   | 'eventDate'
   | 'eventEndDate'
@@ -44,10 +40,9 @@ const columnConfig: { key: ColumnKey; label: string }[] = [
   { key: 'trailerType', label: 'Trailer' },
   { key: 'paidDownpayment', label: 'Paid Downpayment' },
   { key: 'paidFully', label: 'Paid Fully' },
-  { key: 'wantsAnotherDate', label: 'Wants Another Date' },
   { key: 'open', label: 'Open' },
-  { key: 'eventDate', label: 'Event Start' },
-  { key: 'eventEndDate', label: 'Event End' },
+  { key: 'eventDate', label: 'Start Date' },
+  { key: 'eventEndDate', label: 'End Date' },
   { key: 'createdAt', label: 'Submitted At' },
 ]
 
@@ -100,21 +95,6 @@ const getDateRange = (start: string, end?: string) => {
   return dates
 }
 
-const toTsvRow = (item: QuoteItem) => [
-  item.firstName,
-  item.lastName,
-  item.email,
-  item.phone,
-  item.trailerType,
-  boolText(item.paidDownpayment),
-  boolText(item.paidFully),
-  boolText(item.wantsAnotherDate),
-  boolText(!item.answered),
-  item.eventDate,
-  item.eventEndDate || item.eventDate,
-  formatDateTime(item.createdAt),
-].join('\t')
-
 const getRowTone = (item: QuoteItem) => {
   if (item.paidFully) return 'row-paid-full'
   if (item.paidDownpayment) return 'row-paid-down'
@@ -129,10 +109,24 @@ const getDayTone = (items: QuoteItem[]) => {
   return 'day-looked-over'
 }
 
+const toTsvRow = (item: QuoteItem) => [
+  item.firstName,
+  item.lastName,
+  item.email,
+  item.phone,
+  item.trailerType,
+  boolText(item.paidDownpayment),
+  boolText(item.paidFully),
+  boolText(!item.answered),
+  item.eventDate,
+  item.eventEndDate || item.eventDate,
+  formatDateTime(item.createdAt),
+].join('\t')
+
 function Admin() {
   const [codeInput, setCodeInput] = useState('')
   const [code, setCode] = useState('')
-  const [viewMode, setViewMode] = useState<'requests' | 'schedule'>('requests')
+  const [viewMode, setViewMode] = useState<'sheets' | 'schedule'>('sheets')
   const [quotes, setQuotes] = useState<QuoteItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -141,7 +135,6 @@ function Admin() {
   const [trailerFilter, setTrailerFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [paymentFilter, setPaymentFilter] = useState('all')
-  const [flexDateFilter, setFlexDateFilter] = useState('all')
   const [selectedColumn, setSelectedColumn] = useState<ColumnKey>('email')
   const [copyStatus, setCopyStatus] = useState('')
   const [activeMonth, setActiveMonth] = useState(() => {
@@ -209,7 +202,6 @@ function Admin() {
     setTrailerFilter('all')
     setStatusFilter('all')
     setPaymentFilter('all')
-    setFlexDateFilter('all')
   }
 
   const patchQuote = async (id: string, patch: Partial<QuoteItem>) => {
@@ -243,9 +235,7 @@ function Admin() {
     return quotes
       .filter((item) => {
         if (normalizedSearch) {
-          const haystack = [item.firstName, item.lastName, item.email, item.phone, item.fullName, item.message || '']
-            .join(' ')
-            .toLowerCase()
+          const haystack = [item.firstName, item.lastName, item.email, item.phone, item.fullName].join(' ').toLowerCase()
           if (!haystack.includes(normalizedSearch)) return false
         }
 
@@ -257,34 +247,19 @@ function Admin() {
         if (paymentFilter === 'downpayment' && (!item.paidDownpayment || item.paidFully)) return false
         if (paymentFilter === 'full' && !item.paidFully) return false
 
-        if (flexDateFilter === 'yes' && !item.wantsAnotherDate) return false
-        if (flexDateFilter === 'no' && item.wantsAnotherDate) return false
-
         return true
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  }, [quotes, search, trailerFilter, statusFilter, paymentFilter, flexDateFilter])
+  }, [quotes, search, trailerFilter, statusFilter, paymentFilter])
 
   const activeFilterCount = useMemo(() => {
-    return [
-      Boolean(search.trim()),
-      trailerFilter !== 'all',
-      statusFilter !== 'all',
-      paymentFilter !== 'all',
-      flexDateFilter !== 'all',
-    ].filter(Boolean).length
-  }, [search, trailerFilter, statusFilter, paymentFilter, flexDateFilter])
-
-  const summary = useMemo(() => {
-    const openCount = quotes.filter((item) => !item.answered).length
-    const downpaymentCount = quotes.filter((item) => item.paidDownpayment && !item.paidFully).length
-    const fullCount = quotes.filter((item) => item.paidFully).length
-    return { openCount, downpaymentCount, fullCount }
-  }, [quotes])
+    return [Boolean(search.trim()), trailerFilter !== 'all', statusFilter !== 'all', paymentFilter !== 'all'].filter(Boolean)
+      .length
+  }, [search, trailerFilter, statusFilter, paymentFilter])
 
   const quotesByDay = useMemo(() => {
     const index = new Map<string, QuoteItem[]>()
-    for (const item of filteredQuotes) {
+    for (const item of quotes) {
       const days = getDateRange(item.eventDate, item.eventEndDate || item.eventDate)
       for (const day of days) {
         if (!index.has(day)) index.set(day, [])
@@ -292,7 +267,7 @@ function Admin() {
       }
     }
     return index
-  }, [filteredQuotes])
+  }, [quotes])
 
   const calendarDays = useMemo(() => {
     const year = activeMonth.getFullYear()
@@ -341,7 +316,6 @@ function Admin() {
       if (selectedColumn === 'createdAt') return formatDateTime(item.createdAt)
       if (selectedColumn === 'paidDownpayment') return boolText(item.paidDownpayment)
       if (selectedColumn === 'paidFully') return boolText(item.paidFully)
-      if (selectedColumn === 'wantsAnotherDate') return boolText(item.wantsAnotherDate)
       if (selectedColumn === 'eventEndDate') return item.eventEndDate || item.eventDate
       return String(item[selectedColumn] || '')
     })
@@ -355,15 +329,8 @@ function Admin() {
           <h1>Admin Dashboard</h1>
           <p>Enter your private access code.</p>
           <form onSubmit={submitCode} className="admin-login-form">
-            <input
-              type="password"
-              value={codeInput}
-              onChange={(event) => setCodeInput(event.target.value)}
-              placeholder="Admin code"
-            />
-            <button className="button primary" type="submit">
-              Unlock
-            </button>
+            <input type="password" value={codeInput} onChange={(event) => setCodeInput(event.target.value)} placeholder="Admin code" />
+            <button className="button primary" type="submit">Unlock</button>
           </form>
           {error && <p className="field-error">{error}</p>}
         </div>
@@ -374,131 +341,79 @@ function Admin() {
   return (
     <section className="admin-shell">
       <div className="admin-panel">
-        <div className="admin-toolbar">
-          <div>
-            <h1>Admin Dashboard</h1>
-            <p>{filteredQuotes.length} request(s) shown</p>
+        <div className="admin-top-nav">
+          <div className="admin-top-brand">
+            <span className="brand-mark" aria-hidden="true">BS</span>
+            <span>BathroomSheli - Admin</span>
           </div>
-          <div className="admin-toolbar-actions">
-            <button className="button secondary" type="button" onClick={() => fetchQuotes(code)}>
-              Refresh
-            </button>
-            <button className="button secondary" type="button" onClick={logout}>
-              Lock
-            </button>
-          </div>
-        </div>
-
-        <div className="admin-view-tabs" role="tablist" aria-label="Admin views">
-          <button
-            className={`admin-view-tab ${viewMode === 'requests' ? 'is-active' : ''}`}
-            type="button"
-            onClick={() => setViewMode('requests')}
-          >
-            Requests
-          </button>
-          <button
-            className={`admin-view-tab ${viewMode === 'schedule' ? 'is-active' : ''}`}
-            type="button"
-            onClick={() => setViewMode('schedule')}
-          >
-            Schedule
-          </button>
-        </div>
-
-        <div className="admin-summary">
-          <span className="admin-chip chip-open">Open: {summary.openCount}</span>
-          <span className="admin-chip chip-down">Downpayment: {summary.downpaymentCount}</span>
-          <span className="admin-chip chip-full">Paid Fully: {summary.fullCount}</span>
-          <span className="admin-chip">Total: {quotes.length}</span>
-        </div>
-
-        <div className="admin-filters-card">
-          <div className="admin-filters-head">
-            <h2>Filters</h2>
-            <span className="muted">{activeFilterCount} active</span>
-          </div>
-
-          <div className="admin-quick-filters">
-            <button className="button secondary" type="button" onClick={() => setStatusFilter('open')}>
-              Open Only
-            </button>
-            <button className="button secondary" type="button" onClick={() => setPaymentFilter('none')}>
-              Unpaid Only
-            </button>
-            <button className="button secondary" type="button" onClick={() => setPaymentFilter('full')}>
-              Paid Fully
-            </button>
-            <button className="button secondary" type="button" onClick={resetFilters}>
-              Clear Filters
-            </button>
-          </div>
-
-          <div className="admin-filters-grid">
-            <label>
-              Search
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Name, email, phone"
-              />
-            </label>
-
-            <label>
-              Trailer
-              <select value={trailerFilter} onChange={(event) => setTrailerFilter(event.target.value)}>
-                <option value="all">All Trailers</option>
-                <option value="2-stall">2-Stall</option>
-                <option value="3-stall">3-Stall</option>
-              </select>
-            </label>
-
-            <label>
-              Status
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                <option value="all">All Statuses</option>
-                <option value="open">Open</option>
-                <option value="answered">Looked Over</option>
-              </select>
-            </label>
-
-            <label>
-              Payment
-              <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
-                <option value="all">All Payments</option>
-                <option value="none">No Payment</option>
-                <option value="downpayment">Downpayment</option>
-                <option value="full">Paid Fully</option>
-              </select>
-            </label>
-
-            <label>
-              Flexible Date
-              <select value={flexDateFilter} onChange={(event) => setFlexDateFilter(event.target.value)}>
-                <option value="all">All</option>
-                <option value="yes">Wants Another Date</option>
-                <option value="no">Fixed Date</option>
-              </select>
-            </label>
+          <div className="admin-top-right">
+            <div className="admin-view-tabs" role="tablist" aria-label="Admin views">
+              <button className={`admin-view-tab ${viewMode === 'sheets' ? 'is-active' : ''}`} type="button" onClick={() => setViewMode('sheets')}>Sheets</button>
+              <button className={`admin-view-tab ${viewMode === 'schedule' ? 'is-active' : ''}`} type="button" onClick={() => setViewMode('schedule')}>Schedule</button>
+            </div>
+            <button className="button secondary admin-mini-btn" type="button" onClick={() => fetchQuotes(code)}>Refresh</button>
+            <button className="button secondary admin-mini-btn" type="button" onClick={logout}>Lock</button>
           </div>
         </div>
 
-        {viewMode === 'requests' ? (
+        <div className="admin-stat-badge">{filteredQuotes.length}</div>
+
+        {viewMode === 'sheets' ? (
           <>
+            <div className="admin-filters-card compact">
+              <div className="admin-filters-head">
+                <h2>Filters</h2>
+                <span className="muted">{activeFilterCount} active</span>
+              </div>
+
+              <div className="admin-quick-filters compact">
+                <button className="button secondary" type="button" onClick={() => setStatusFilter('open')}>Open</button>
+                <button className="button secondary" type="button" onClick={() => setPaymentFilter('none')}>Unpaid</button>
+                <button className="button secondary" type="button" onClick={() => setPaymentFilter('full')}>Paid</button>
+                <button className="button secondary" type="button" onClick={resetFilters}>Clear</button>
+              </div>
+
+              <div className="admin-filters-grid compact">
+                <label>
+                  Search
+                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, email, phone" />
+                </label>
+                <label>
+                  Trailer
+                  <select value={trailerFilter} onChange={(event) => setTrailerFilter(event.target.value)}>
+                    <option value="all">All</option>
+                    <option value="2-stall">2-Stall</option>
+                    <option value="3-stall">3-Stall</option>
+                  </select>
+                </label>
+                <label>
+                  Status
+                  <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                    <option value="all">All</option>
+                    <option value="open">Open</option>
+                    <option value="answered">Looked Over</option>
+                  </select>
+                </label>
+                <label>
+                  Payment
+                  <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
+                    <option value="all">All</option>
+                    <option value="none">No Payment</option>
+                    <option value="downpayment">Downpayment</option>
+                    <option value="full">Paid Fully</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
             <div className="admin-export">
-              <button className="button secondary" type="button" onClick={copyAllRows}>
-                Copy All (TSV)
-              </button>
+              <button className="button secondary" type="button" onClick={copyAllRows}>Copy All (TSV)</button>
               <select value={selectedColumn} onChange={(event) => setSelectedColumn(event.target.value as ColumnKey)}>
                 {columnConfig.map((column) => (
-                  <option key={column.key} value={column.key}>
-                    {column.label}
-                  </option>
+                  <option key={column.key} value={column.key}>{column.label}</option>
                 ))}
               </select>
-              <button className="button secondary" type="button" onClick={copySingleColumn}>
-                Copy Column
-              </button>
+              <button className="button secondary" type="button" onClick={copySingleColumn}>Copy Column</button>
               {copyStatus && <span className="muted">{copyStatus}</span>}
             </div>
 
@@ -511,13 +426,12 @@ function Admin() {
                     <th>Email</th>
                     <th>Phone Number</th>
                     <th>Trailer</th>
-                    <th>Paid Downpayment</th>
+                    <th>Downpayment</th>
                     <th>Paid Fully</th>
-                    <th>Wants Another Date</th>
                     <th>Looked Over</th>
-                    <th>Event Start</th>
-                    <th>Event End</th>
-                    <th>Submitted At</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Submitted</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -530,50 +444,9 @@ function Admin() {
                         <td>{item.email}</td>
                         <td>{item.phone}</td>
                         <td>{item.trailerType}</td>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={item.paidDownpayment}
-                            disabled={isUpdating}
-                            onChange={(event) =>
-                              patchQuote(item._id, {
-                                paidDownpayment: event.target.checked,
-                                paidFully: event.target.checked ? item.paidFully : false,
-                              })
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={item.paidFully}
-                            disabled={isUpdating}
-                            onChange={(event) =>
-                              patchQuote(item._id, {
-                                paidFully: event.target.checked,
-                                paidDownpayment: event.target.checked ? true : item.paidDownpayment,
-                              })
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={item.wantsAnotherDate}
-                            disabled={isUpdating}
-                            onChange={(event) => patchQuote(item._id, { wantsAnotherDate: event.target.checked })}
-                          />
-                        </td>
-                        <td>
-                          <button
-                            className={`review-toggle ${item.answered ? 'is-on' : ''}`}
-                            type="button"
-                            disabled={isUpdating}
-                            onClick={() => patchQuote(item._id, { answered: !item.answered })}
-                          >
-                            {item.answered ? 'Looked Over' : 'Mark Looked Over'}
-                          </button>
-                        </td>
+                        <td><input type="checkbox" checked={item.paidDownpayment} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { paidDownpayment: event.target.checked, paidFully: event.target.checked ? item.paidFully : false })} /></td>
+                        <td><input type="checkbox" checked={item.paidFully} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { paidFully: event.target.checked, paidDownpayment: event.target.checked ? true : item.paidDownpayment })} /></td>
+                        <td><button className="review-toggle" type="button" disabled={isUpdating} onClick={() => patchQuote(item._id, { answered: !item.answered })}>{item.answered ? 'Looked Over' : 'Mark'}</button></td>
                         <td>{item.eventDate}</td>
                         <td>{item.eventEndDate || item.eventDate}</td>
                         <td>{formatDateTime(item.createdAt)}</td>
@@ -587,13 +460,9 @@ function Admin() {
         ) : (
           <div className="schedule-panel">
             <div className="schedule-head">
-              <button className="button secondary" type="button" onClick={() => setActiveMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}>
-                Previous
-              </button>
+              <button className="button secondary" type="button" onClick={() => setActiveMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}>Previous</button>
               <h2>{monthLabel(activeMonth)}</h2>
-              <button className="button secondary" type="button" onClick={() => setActiveMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}>
-                Next
-              </button>
+              <button className="button secondary" type="button" onClick={() => setActiveMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}>Next</button>
             </div>
 
             <div className="schedule-legend">
@@ -616,13 +485,7 @@ function Admin() {
                 const inMonth = day.getMonth() === activeMonth.getMonth()
                 const tone = items.length > 0 ? getDayTone(items) : ''
                 return (
-                  <button
-                    key={iso}
-                    type="button"
-                    className={`calendar-cell ${inMonth ? '' : 'is-muted'} ${tone}`.trim()}
-                    onClick={() => items.length > 0 && setSelectedDay(iso)}
-                    disabled={items.length === 0}
-                  >
+                  <button key={iso} type="button" className={`calendar-cell ${inMonth ? '' : 'is-muted'} ${tone}`.trim()} onClick={() => items.length > 0 && setSelectedDay(iso)} disabled={items.length === 0}>
                     <span className="calendar-date">{day.getDate()}</span>
                     {items.length > 0 ? <span className="calendar-count">{items.length} request(s)</span> : null}
                   </button>
@@ -637,9 +500,7 @@ function Admin() {
             <div className="admin-modal" onClick={(event) => event.stopPropagation()}>
               <div className="admin-modal-head">
                 <h3>{formatDateLabel(selectedDay)}</h3>
-                <button className="button secondary" type="button" onClick={() => setSelectedDay(null)}>
-                  Close
-                </button>
+                <button className="button secondary" type="button" onClick={() => setSelectedDay(null)}>Close</button>
               </div>
 
               <div className="admin-modal-list">
@@ -652,30 +513,15 @@ function Admin() {
                       <div className="admin-modal-fields">
                         <label>
                           Start
-                          <input
-                            type="date"
-                            value={item.eventDate}
-                            disabled={isUpdating}
-                            onChange={(event) => patchQuote(item._id, { eventDate: event.target.value })}
-                          />
+                          <input type="date" value={item.eventDate} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { eventDate: event.target.value })} />
                         </label>
                         <label>
                           End
-                          <input
-                            type="date"
-                            value={item.eventEndDate || item.eventDate}
-                            min={item.eventDate}
-                            disabled={isUpdating}
-                            onChange={(event) => patchQuote(item._id, { eventEndDate: event.target.value })}
-                          />
+                          <input type="date" value={item.eventEndDate || item.eventDate} min={item.eventDate} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { eventEndDate: event.target.value })} />
                         </label>
                         <label>
                           Trailer
-                          <select
-                            value={item.trailerType}
-                            disabled={isUpdating}
-                            onChange={(event) => patchQuote(item._id, { trailerType: event.target.value as '2-stall' | '3-stall' })}
-                          >
+                          <select value={item.trailerType} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { trailerType: event.target.value as '2-stall' | '3-stall' })}>
                             <option value="2-stall">2-Stall</option>
                             <option value="3-stall">3-Stall</option>
                           </select>
@@ -685,7 +531,6 @@ function Admin() {
                       <div className="admin-modal-toggles">
                         <label><input type="checkbox" checked={item.paidDownpayment} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { paidDownpayment: event.target.checked, paidFully: event.target.checked ? item.paidFully : false })} /> Downpayment</label>
                         <label><input type="checkbox" checked={item.paidFully} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { paidFully: event.target.checked, paidDownpayment: event.target.checked ? true : item.paidDownpayment })} /> Paid Fully</label>
-                        <label><input type="checkbox" checked={item.wantsAnotherDate} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { wantsAnotherDate: event.target.checked })} /> Wants Another Date</label>
                         <button className="review-toggle" type="button" disabled={isUpdating} onClick={() => patchQuote(item._id, { answered: !item.answered })}>{item.answered ? 'Looked Over' : 'Mark Looked Over'}</button>
                       </div>
                     </article>

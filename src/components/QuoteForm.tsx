@@ -8,9 +8,7 @@ type QuoteFormValues = {
   phone: string
   eventDate: string
   eventEndDate: string
-  isMultiDay: boolean
   trailerType: string
-  wantsAnotherDate: boolean
   message: string
 }
 
@@ -21,11 +19,11 @@ const initialValues: QuoteFormValues = {
   phone: '',
   eventDate: '',
   eventEndDate: '',
-  isMultiDay: false,
   trailerType: '',
-  wantsAnotherDate: false,
   message: '',
 }
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function QuoteForm() {
   const { strings } = useI18n()
@@ -33,18 +31,18 @@ function QuoteForm() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success'>('idle')
   const [submitError, setSubmitError] = useState('')
+
   const fieldLabels = {
     firstName: strings.form.fields.firstName || strings.form.fields.fullName || 'First name',
     lastName: strings.form.fields.lastName || 'Last name',
     email: strings.form.fields.email,
     phone: strings.form.fields.phone || 'Phone number',
     eventDate: strings.form.fields.eventDate,
-    eventEndDate: 'End date',
-    isMultiDay: 'This booking is for multiple days',
+    eventEndDate: 'End date (for multi-day)',
     trailerType: strings.form.fields.trailerType,
-    wantsAnotherDate: strings.form.fields.wantsAnotherDate || 'Flexible date',
     message: strings.form.fields.message,
   }
+
   const fieldErrors = {
     firstName: strings.form.errors.firstName || strings.form.errors.fullName || 'Required',
     lastName: strings.form.errors.lastName || 'Required',
@@ -60,11 +58,6 @@ function QuoteForm() {
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
     const { name, value } = event.target
-    const target = event.target
-    if (target instanceof HTMLInputElement && target.type === 'checkbox') {
-      setValues((prev) => ({ ...prev, [name]: target.checked }))
-      return
-    }
     setValues((prev) => ({ ...prev, [name]: value }))
   }
 
@@ -72,21 +65,29 @@ function QuoteForm() {
     const nextErrors: Record<string, string> = {}
     if (!values.firstName.trim()) nextErrors.firstName = fieldErrors.firstName
     if (!values.lastName.trim()) nextErrors.lastName = fieldErrors.lastName
-    if (!values.email.trim()) nextErrors.email = fieldErrors.email
-    if (!values.phone.trim()) nextErrors.phone = fieldErrors.phone
+
+    const email = values.email.trim()
+    if (!email || !emailPattern.test(email)) nextErrors.email = fieldErrors.email
+
+    const phone = values.phone.trim()
+    if (!phone || phone.length < 6) nextErrors.phone = fieldErrors.phone
+
     if (!values.eventDate.trim()) nextErrors.eventDate = fieldErrors.eventDate
-    if (values.isMultiDay && !values.eventEndDate.trim()) nextErrors.eventEndDate = fieldErrors.eventEndDate
-    if (values.isMultiDay && values.eventEndDate && values.eventEndDate < values.eventDate) {
+
+    const endDate = values.eventEndDate.trim() || values.eventDate.trim()
+    if (!endDate) nextErrors.eventEndDate = fieldErrors.eventEndDate
+    if (values.eventDate && endDate && endDate < values.eventDate) {
       nextErrors.eventEndDate = 'End date cannot be before start date.'
     }
-    if (!values.trailerType.trim())
-      nextErrors.trailerType = fieldErrors.trailerType
+
+    if (!values.trailerType.trim()) nextErrors.trailerType = fieldErrors.trailerType
     return nextErrors
   }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSubmitError('')
+
     const nextErrors = validate()
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
@@ -96,33 +97,35 @@ function QuoteForm() {
 
     try {
       setStatus('submitting')
-      const compatPayload = {
+      const endDate = values.eventEndDate.trim() || values.eventDate.trim()
+      const payload = {
         ...values,
-        eventEndDate: values.isMultiDay ? values.eventEndDate : values.eventDate,
+        eventEndDate: endDate,
         fullName: `${values.firstName} ${values.lastName}`.trim(),
         cityOrArea: '',
       }
+
       const response = await fetch('/api/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(compatPayload),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       })
+
       if (!response.ok) {
         let details = ''
         let requestId = ''
-        let likelyCause = ''
         try {
-          const payload = await response.json()
-          details = typeof payload?.reason === 'string' ? payload.reason : ''
-          requestId = typeof payload?.requestId === 'string' ? payload.requestId : ''
-          likelyCause = typeof payload?.likelyCause === 'string' ? payload.likelyCause : ''
+          const result = await response.json()
+          details = typeof result?.reason === 'string' ? result.reason : ''
+          requestId = typeof result?.requestId === 'string' ? result.requestId : ''
         } catch {
           details = ''
         }
-        const parts = [details, likelyCause ? `cause:${likelyCause}` : '', requestId ? `id:${requestId}` : ''].filter(Boolean)
+        const parts = [details, requestId ? `id:${requestId}` : ''].filter(Boolean)
         throw new Error(parts.join(' | ') || 'Request failed')
       }
+
       setStatus('success')
       setValues(initialValues)
     } catch (error) {
@@ -160,146 +163,60 @@ function QuoteForm() {
     <form className="quote-form" onSubmit={handleSubmit} noValidate>
       <div className="field">
         <label htmlFor="firstName">{fieldLabels.firstName}</label>
-        <input
-          id="firstName"
-          name="firstName"
-          type="text"
-          value={values.firstName}
-          onChange={handleChange}
-          aria-invalid={Boolean(errors.firstName)}
-          aria-describedby={errors.firstName ? 'firstName-error' : undefined}
-        />
-        {errors.firstName && (
-          <span className="field-error" id="firstName-error">
-            {errors.firstName}
-          </span>
-        )}
+        <input id="firstName" name="firstName" type="text" value={values.firstName} onChange={handleChange} />
+        {errors.firstName && <span className="field-error">{errors.firstName}</span>}
       </div>
 
       <div className="field">
         <label htmlFor="lastName">{fieldLabels.lastName}</label>
-        <input
-          id="lastName"
-          name="lastName"
-          type="text"
-          value={values.lastName}
-          onChange={handleChange}
-          aria-invalid={Boolean(errors.lastName)}
-          aria-describedby={errors.lastName ? 'lastName-error' : undefined}
-        />
-        {errors.lastName && (
-          <span className="field-error" id="lastName-error">
-            {errors.lastName}
-          </span>
-        )}
+        <input id="lastName" name="lastName" type="text" value={values.lastName} onChange={handleChange} />
+        {errors.lastName && <span className="field-error">{errors.lastName}</span>}
       </div>
 
       <div className="field">
-        <label htmlFor="email">{strings.form.fields.email}</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          value={values.email}
-          onChange={handleChange}
-          aria-invalid={Boolean(errors.email)}
-        />
+        <label htmlFor="email">{fieldLabels.email}</label>
+        <input id="email" name="email" type="email" value={values.email} onChange={handleChange} />
         {errors.email && <span className="field-error">{errors.email}</span>}
       </div>
 
       <div className="field">
         <label htmlFor="phone">{fieldLabels.phone}</label>
-        <input
-          id="phone"
-          name="phone"
-          type="tel"
-          value={values.phone}
-          onChange={handleChange}
-          aria-invalid={Boolean(errors.phone)}
-        />
+        <input id="phone" name="phone" type="tel" value={values.phone} onChange={handleChange} />
         {errors.phone && <span className="field-error">{errors.phone}</span>}
       </div>
 
       <div className="field">
         <label htmlFor="eventDate">{fieldLabels.eventDate}</label>
-        <input
-          id="eventDate"
-          name="eventDate"
-          type="date"
-          value={values.eventDate}
-          onChange={handleChange}
-          aria-invalid={Boolean(errors.eventDate)}
-        />
+        <input id="eventDate" name="eventDate" type="date" value={values.eventDate} onChange={handleChange} />
         {errors.eventDate && <span className="field-error">{errors.eventDate}</span>}
       </div>
 
-      <div className="field field-span">
-        <label className="checkbox-field">
-          <input
-            name="isMultiDay"
-            type="checkbox"
-            checked={values.isMultiDay}
-            onChange={handleChange}
-          />
-          <span>{fieldLabels.isMultiDay}</span>
-        </label>
+      <div className="field">
+        <label htmlFor="eventEndDate">{fieldLabels.eventEndDate}</label>
+        <input
+          id="eventEndDate"
+          name="eventEndDate"
+          type="date"
+          value={values.eventEndDate}
+          min={values.eventDate || undefined}
+          onChange={handleChange}
+        />
+        {errors.eventEndDate && <span className="field-error">{errors.eventEndDate}</span>}
       </div>
-
-      {values.isMultiDay && (
-        <div className="field">
-          <label htmlFor="eventEndDate">{fieldLabels.eventEndDate}</label>
-          <input
-            id="eventEndDate"
-            name="eventEndDate"
-            type="date"
-            value={values.eventEndDate}
-            min={values.eventDate || undefined}
-            onChange={handleChange}
-            aria-invalid={Boolean(errors.eventEndDate)}
-          />
-          {errors.eventEndDate && <span className="field-error">{errors.eventEndDate}</span>}
-        </div>
-      )}
 
       <div className="field">
         <label htmlFor="trailerType">{fieldLabels.trailerType}</label>
-        <select
-          id="trailerType"
-          name="trailerType"
-          value={values.trailerType}
-          onChange={handleChange}
-          aria-invalid={Boolean(errors.trailerType)}
-        >
+        <select id="trailerType" name="trailerType" value={values.trailerType} onChange={handleChange}>
           <option value="">{strings.form.trailerOptions.placeholder}</option>
           <option value="2-stall">{strings.form.trailerOptions.two}</option>
           <option value="3-stall">{strings.form.trailerOptions.three}</option>
         </select>
-        {errors.trailerType && (
-          <span className="field-error">{errors.trailerType}</span>
-        )}
-      </div>
-
-      <div className="field field-span">
-        <label className="checkbox-field">
-          <input
-            name="wantsAnotherDate"
-            type="checkbox"
-            checked={values.wantsAnotherDate}
-            onChange={handleChange}
-          />
-          <span>{fieldLabels.wantsAnotherDate}</span>
-        </label>
+        {errors.trailerType && <span className="field-error">{errors.trailerType}</span>}
       </div>
 
       <div className="field field-span">
         <label htmlFor="message">{fieldLabels.message}</label>
-        <textarea
-          id="message"
-          name="message"
-          rows={4}
-          value={values.message}
-          onChange={handleChange}
-        />
+        <textarea id="message" name="message" rows={4} value={values.message} onChange={handleChange} />
       </div>
 
       {submitError && <span className="field-error form-error">{submitError}</span>}

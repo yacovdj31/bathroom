@@ -17,16 +17,6 @@ const asText = (value) => {
   return String(value).trim()
 }
 
-const asBoolean = (value) => {
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase()
-    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on'
-  }
-  if (typeof value === 'number') return value === 1
-  return false
-}
-
 const normalizeTrailerType = (value) => {
   const raw = String(value || '').toLowerCase().trim()
   if (raw.includes('3')) return '3-stall'
@@ -72,14 +62,13 @@ export default async function handler(req, res) {
     })
   }
 
-  const email = asText(body.email)
+  const email = asText(body.email).toLowerCase()
   const phone = asText(body.phone)
   const eventDate = normalizeEventDate(asText(body.eventDate))
   let eventEndDate = normalizeEventDate(asText(body.eventEndDate))
   const trailerType = normalizeTrailerType(asText(body.trailerType || body.trailer))
   const cityOrArea = asText(body.cityOrArea || body.city || body.area)
   const message = asText(body.message)
-  const wantsAnotherDate = asBoolean(body.wantsAnotherDate)
   let firstName = asText(body.firstName)
   let lastName = asText(body.lastName)
   const fallbackFullName = asText(body.fullName || body.name)
@@ -102,7 +91,7 @@ export default async function handler(req, res) {
     })
   }
 
-  if (!email || !email.includes('@')) {
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ ok: false, requestId, reason: 'Invalid email' })
   }
   if (!phone || phone.length < 6) {
@@ -138,7 +127,7 @@ export default async function handler(req, res) {
     cityOrArea,
     trailerType,
     message,
-    wantsAnotherDate,
+    wantsAnotherDate: false,
     paidDownpayment: false,
     paidFully: false,
     answered: false,

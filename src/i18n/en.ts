@@ -180,8 +180,8 @@ export const en = {
       email: 'Email',
       phone: 'Phone number',
       eventDate: 'Event date',
+      eventEndDate: 'End date',
       trailerType: 'Trailer type',
-      wantsAnotherDate: 'Flexible date (I can move to another date)',
       message: 'Message (optional)',
     },
     trailerOptions: {
