@@ -51,6 +51,7 @@ router.post('/', async (req, res) => {
   const email = asText(body.email)
   const phone = asText(body.phone)
   const eventDate = normalizeEventDate(asText(body.eventDate))
+  let eventEndDate = normalizeEventDate(asText(body.eventEndDate))
   const trailerType = normalizeTrailerType(asText(body.trailerType || body.trailer))
   const cityOrArea = asText(body.cityOrArea || body.city || body.area)
   const message = asText(body.message)
@@ -76,6 +77,12 @@ router.post('/', async (req, res) => {
   if (!eventDate) {
     return res.status(400).json({ ok: false, requestId, reason: 'Event date is required' })
   }
+  if (!eventEndDate) {
+    eventEndDate = eventDate
+  }
+  if (eventEndDate < eventDate) {
+    eventEndDate = eventDate
+  }
   if (!['2-stall', '3-stall'].includes(trailerType)) {
     return res.status(400).json({
       ok: false,
@@ -92,6 +99,7 @@ router.post('/', async (req, res) => {
     email,
     phone,
     eventDate,
+    eventEndDate,
     cityOrArea,
     trailerType,
     message,

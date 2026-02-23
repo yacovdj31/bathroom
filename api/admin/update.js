@@ -9,6 +9,9 @@ const updateSchema = z.object({
   paidDownpayment: z.boolean().optional(),
   paidFully: z.boolean().optional(),
   wantsAnotherDate: z.boolean().optional(),
+  eventDate: z.string().optional(),
+  eventEndDate: z.string().optional(),
+  trailerType: z.enum(['2-stall', '3-stall']).optional(),
 })
 
 const normalizeBody = (body) => {
@@ -47,6 +50,18 @@ export default async function handler(req, res) {
 
   const { id, ...fields } = parsed.data
   const update = { ...fields }
+  const hasEventDate = Object.prototype.hasOwnProperty.call(update, 'eventDate')
+  const hasEventEndDate = Object.prototype.hasOwnProperty.call(update, 'eventEndDate')
+  if (hasEventDate && !hasEventEndDate) {
+    update.eventEndDate = update.eventDate
+  }
+  if (
+    typeof update.eventDate === 'string' &&
+    typeof update.eventEndDate === 'string' &&
+    update.eventEndDate < update.eventDate
+  ) {
+    update.eventEndDate = update.eventDate
+  }
   if (update.paidFully) {
     update.paidDownpayment = true
   }

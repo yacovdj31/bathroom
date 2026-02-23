@@ -7,6 +7,8 @@ type QuoteFormValues = {
   email: string
   phone: string
   eventDate: string
+  eventEndDate: string
+  isMultiDay: boolean
   trailerType: string
   wantsAnotherDate: boolean
   message: string
@@ -18,6 +20,8 @@ const initialValues: QuoteFormValues = {
   email: '',
   phone: '',
   eventDate: '',
+  eventEndDate: '',
+  isMultiDay: false,
   trailerType: '',
   wantsAnotherDate: false,
   message: '',
@@ -35,6 +39,8 @@ function QuoteForm() {
     email: strings.form.fields.email,
     phone: strings.form.fields.phone || 'Phone number',
     eventDate: strings.form.fields.eventDate,
+    eventEndDate: 'End date',
+    isMultiDay: 'This booking is for multiple days',
     trailerType: strings.form.fields.trailerType,
     wantsAnotherDate: strings.form.fields.wantsAnotherDate || 'Flexible date',
     message: strings.form.fields.message,
@@ -45,6 +51,7 @@ function QuoteForm() {
     email: strings.form.errors.email,
     phone: strings.form.errors.phone || 'Required',
     eventDate: strings.form.errors.eventDate,
+    eventEndDate: 'Please choose an end date.',
     trailerType: strings.form.errors.trailerType,
     submit: strings.form.errors.submit,
   }
@@ -68,6 +75,10 @@ function QuoteForm() {
     if (!values.email.trim()) nextErrors.email = fieldErrors.email
     if (!values.phone.trim()) nextErrors.phone = fieldErrors.phone
     if (!values.eventDate.trim()) nextErrors.eventDate = fieldErrors.eventDate
+    if (values.isMultiDay && !values.eventEndDate.trim()) nextErrors.eventEndDate = fieldErrors.eventEndDate
+    if (values.isMultiDay && values.eventEndDate && values.eventEndDate < values.eventDate) {
+      nextErrors.eventEndDate = 'End date cannot be before start date.'
+    }
     if (!values.trailerType.trim())
       nextErrors.trailerType = fieldErrors.trailerType
     return nextErrors
@@ -87,6 +98,7 @@ function QuoteForm() {
       setStatus('submitting')
       const compatPayload = {
         ...values,
+        eventEndDate: values.isMultiDay ? values.eventEndDate : values.eventDate,
         fullName: `${values.firstName} ${values.lastName}`.trim(),
         cityOrArea: '',
       }
@@ -220,6 +232,34 @@ function QuoteForm() {
         />
         {errors.eventDate && <span className="field-error">{errors.eventDate}</span>}
       </div>
+
+      <div className="field field-span">
+        <label className="checkbox-field">
+          <input
+            name="isMultiDay"
+            type="checkbox"
+            checked={values.isMultiDay}
+            onChange={handleChange}
+          />
+          <span>{fieldLabels.isMultiDay}</span>
+        </label>
+      </div>
+
+      {values.isMultiDay && (
+        <div className="field">
+          <label htmlFor="eventEndDate">{fieldLabels.eventEndDate}</label>
+          <input
+            id="eventEndDate"
+            name="eventEndDate"
+            type="date"
+            value={values.eventEndDate}
+            min={values.eventDate || undefined}
+            onChange={handleChange}
+            aria-invalid={Boolean(errors.eventEndDate)}
+          />
+          {errors.eventEndDate && <span className="field-error">{errors.eventEndDate}</span>}
+        </div>
+      )}
 
       <div className="field">
         <label htmlFor="trailerType">{fieldLabels.trailerType}</label>

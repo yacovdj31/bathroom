@@ -8,6 +8,7 @@ const QuoteSchema = new mongoose.Schema(
     email: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true },
     eventDate: { type: String, required: true },
+    eventEndDate: { type: String, default: '' },
     cityOrArea: { type: String, default: '' },
     trailerType: { type: String, required: true },
     message: { type: String, default: '' },
