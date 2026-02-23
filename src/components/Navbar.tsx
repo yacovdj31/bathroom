@@ -67,7 +67,8 @@ function Navbar() {
         </nav>
 
         <Link className="button primary nav-cta nav-cta-center" to="/contact" onClick={() => setMenuOpen(false)}>
-          {strings.nav.cta}
+          <span className="cta-full">{strings.nav.cta}</span>
+          <span className="cta-short">Quote</span>
         </Link>
 
         <div className="nav-actions">

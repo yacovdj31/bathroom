@@ -263,6 +263,10 @@ main {
     border-color var(--transition), box-shadow var(--transition);
 }
 
+.cta-short {
+  display: none;
+}
+
 .button.primary.nav-cta-center:hover,
 .button.primary.nav-cta-center:focus-visible,
 .button.primary.nav-cta-center:active {
@@ -783,6 +787,8 @@ main {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   border: 1px solid rgba(15, 18, 22, 0.12);
   border-radius: 12px;
   padding: 8px 10px;
@@ -800,6 +806,8 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
+  flex-wrap: nowrap;
 }
 
 .admin-mini-btn {
@@ -902,6 +910,7 @@ main {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .admin-quick-filters.compact {
@@ -955,6 +964,7 @@ main {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .admin-export select {
@@ -1485,7 +1495,21 @@ main {
   }
 
   .nav-cta-center {
+    order: 2;
+    position: static;
+    transform: none;
+    margin-left: 0;
+    font-size: 0.74rem;
+    padding: 5px 8px;
+    min-width: 64px;
+  }
+
+  .cta-full {
     display: none;
+  }
+
+  .cta-short {
+    display: inline;
   }
 
   .nav-actions {
@@ -1523,7 +1547,9 @@ main {
   }
 
   .nav-cta-center {
-    display: none;
+    font-size: 0.68rem;
+    padding: 4px 7px;
+    min-width: 56px;
   }
 
   .mobile-nav {
@@ -1596,13 +1622,8 @@ main {
     padding: 14px;
   }
 
-  .admin-top-nav {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
+  .admin-top-nav,
   .admin-top-right {
-    justify-content: space-between;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 }

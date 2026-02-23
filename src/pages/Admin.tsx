@@ -135,7 +135,6 @@ function Admin() {
   const [trailerFilter, setTrailerFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [paymentFilter, setPaymentFilter] = useState('all')
-  const [selectedColumn, setSelectedColumn] = useState<ColumnKey>('email')
   const [copyStatus, setCopyStatus] = useState('')
   const [activeMonth, setActiveMonth] = useState(() => {
     const now = new Date()
@@ -309,19 +308,6 @@ function Admin() {
     copyText([header, ...rows].join('\n'), `Copied ${rows.length} rows`)
   }
 
-  const copySingleColumn = () => {
-    const label = columnConfig.find((column) => column.key === selectedColumn)?.label || 'Column'
-    const values = filteredQuotes.map((item) => {
-      if (selectedColumn === 'open') return boolText(!item.answered)
-      if (selectedColumn === 'createdAt') return formatDateTime(item.createdAt)
-      if (selectedColumn === 'paidDownpayment') return boolText(item.paidDownpayment)
-      if (selectedColumn === 'paidFully') return boolText(item.paidFully)
-      if (selectedColumn === 'eventEndDate') return item.eventEndDate || item.eventDate
-      return String(item[selectedColumn] || '')
-    })
-    copyText([label, ...values].join('\n'), `Copied ${label} column`)
-  }
-
   if (!code) {
     return (
       <section className="admin-shell">
@@ -360,60 +346,8 @@ function Admin() {
 
         {viewMode === 'sheets' ? (
           <>
-            <div className="admin-filters-card compact">
-              <div className="admin-filters-head">
-                <h2>Filters</h2>
-                <span className="muted">{activeFilterCount} active</span>
-              </div>
-
-              <div className="admin-quick-filters compact">
-                <button className="button secondary" type="button" onClick={() => setStatusFilter('open')}>Open</button>
-                <button className="button secondary" type="button" onClick={() => setPaymentFilter('none')}>Unpaid</button>
-                <button className="button secondary" type="button" onClick={() => setPaymentFilter('full')}>Paid</button>
-                <button className="button secondary" type="button" onClick={resetFilters}>Clear</button>
-              </div>
-
-              <div className="admin-filters-grid compact">
-                <label>
-                  Search
-                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, email, phone" />
-                </label>
-                <label>
-                  Trailer
-                  <select value={trailerFilter} onChange={(event) => setTrailerFilter(event.target.value)}>
-                    <option value="all">All</option>
-                    <option value="2-stall">2-Stall</option>
-                    <option value="3-stall">3-Stall</option>
-                  </select>
-                </label>
-                <label>
-                  Status
-                  <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                    <option value="all">All</option>
-                    <option value="open">Open</option>
-                    <option value="answered">Looked Over</option>
-                  </select>
-                </label>
-                <label>
-                  Payment
-                  <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
-                    <option value="all">All</option>
-                    <option value="none">No Payment</option>
-                    <option value="downpayment">Downpayment</option>
-                    <option value="full">Paid Fully</option>
-                  </select>
-                </label>
-              </div>
-            </div>
-
             <div className="admin-export">
               <button className="button secondary" type="button" onClick={copyAllRows}>Copy All (TSV)</button>
-              <select value={selectedColumn} onChange={(event) => setSelectedColumn(event.target.value as ColumnKey)}>
-                {columnConfig.map((column) => (
-                  <option key={column.key} value={column.key}>{column.label}</option>
-                ))}
-              </select>
-              <button className="button secondary" type="button" onClick={copySingleColumn}>Copy Column</button>
               {copyStatus && <span className="muted">{copyStatus}</span>}
             </div>
 
@@ -455,6 +389,51 @@ function Admin() {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            <div className="admin-filters-card compact">
+              <div className="admin-filters-head">
+                <h2>Filters</h2>
+                <span className="muted">{activeFilterCount} active</span>
+              </div>
+
+              <div className="admin-quick-filters compact">
+                <button className="button secondary" type="button" onClick={() => setPaymentFilter('none')}>Unpaid</button>
+                <button className="button secondary" type="button" onClick={() => setPaymentFilter('full')}>Paid</button>
+                <button className="button secondary" type="button" onClick={resetFilters}>Clear Filters</button>
+              </div>
+
+              <div className="admin-filters-grid compact">
+                <label>
+                  Search
+                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, email, phone" />
+                </label>
+                <label>
+                  Trailer
+                  <select value={trailerFilter} onChange={(event) => setTrailerFilter(event.target.value)}>
+                    <option value="all">All</option>
+                    <option value="2-stall">2-Stall</option>
+                    <option value="3-stall">3-Stall</option>
+                  </select>
+                </label>
+                <label>
+                  Status
+                  <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                    <option value="all">All</option>
+                    <option value="open">Open</option>
+                    <option value="answered">Looked Over</option>
+                  </select>
+                </label>
+                <label>
+                  Payment
+                  <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
+                    <option value="all">All</option>
+                    <option value="none">No Payment</option>
+                    <option value="downpayment">Downpayment</option>
+                    <option value="full">Paid Fully</option>
+                  </select>
+                </label>
+              </div>
             </div>
           </>
         ) : (
