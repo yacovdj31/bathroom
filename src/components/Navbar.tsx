@@ -44,28 +44,30 @@ function Navbar() {
   return (
     <header ref={headerRef} className="navbar">
       <div className="navbar-inner">
-        <NavLink className="brand" to="/" onClick={() => setMenuOpen(false)}>
-          <img
-            className="brand-logo"
-            src="/images/toilet-photo.png"
-            alt="Bathroom Sheli"
-          />
-        </NavLink>
+        <div className="nav-left">
+          <NavLink className="brand" to="/" onClick={() => setMenuOpen(false)}>
+            <img
+              className="brand-logo"
+              src="/images/toilet-photo.png"
+              alt="Bathroom Sheli"
+            />
+          </NavLink>
 
-        <nav className={`nav-links ${menuOpen ? 'is-open' : ''}`} aria-label="Primary">
-          {strings.nav.links.map((link) => (
-            <NavLink
-              key={link.path}
-              className={({ isActive }) =>
-                `nav-link ${isActive ? 'is-active' : ''}`
-              }
-              to={link.path}
-              onClick={() => setMenuOpen(false)}
-            >
-              {link.label}
-            </NavLink>
-          ))}
-        </nav>
+          <nav className={`nav-links ${menuOpen ? 'is-open' : ''}`} aria-label="Primary">
+            {strings.nav.links.map((link) => (
+              <NavLink
+                key={link.path}
+                className={({ isActive }) =>
+                  `nav-link ${isActive ? 'is-active' : ''}`
+                }
+                to={link.path}
+                onClick={() => setMenuOpen(false)}
+              >
+                {link.label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
 
         <Link className="button primary nav-cta nav-cta-center" to="/contact" onClick={() => setMenuOpen(false)}>
           Request Quote
