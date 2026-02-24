@@ -184,26 +184,16 @@ main {
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 6px 9px;
+  padding: 4px 6px;
   border-radius: 10px;
   color: #1f2b39;
 }
 
-.brand-mark {
-  width: 26px;
-  height: 26px;
-  display: inline-grid;
-  place-items: center;
-  border-radius: 8px;
-  background: linear-gradient(140deg, #2f6db6, #154274);
-  color: #fff;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-}
-
-.brand-text {
-  font-size: 0.9rem;
+.brand-logo {
+  width: clamp(148px, 17vw, 228px);
+  height: auto;
+  max-height: 56px;
+  object-fit: contain;
 }
 
 .brand:hover,
@@ -248,29 +238,26 @@ main {
 }
 
 .nav-cta-center {
+  --nav-cta-transform: translate(-50%, -50%);
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
+  transform: var(--nav-cta-transform);
   z-index: 2;
-  font-size: clamp(0.7rem, 1.2vw, 0.84rem);
-  padding: clamp(5px, 0.9vw, 8px) clamp(10px, 1.6vw, 15px);
-  max-width: min(52vw, 210px);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: clamp(0.76rem, 1.05vw, 0.9rem);
+  padding: clamp(6px, 0.9vw, 9px) clamp(12px, 1.6vw, 18px);
+  min-width: 148px;
+  max-width: none;
+  overflow: visible;
   white-space: nowrap;
   transition: background var(--transition), color var(--transition),
     border-color var(--transition), box-shadow var(--transition);
 }
 
-.cta-short {
-  display: none;
-}
-
 .button.primary.nav-cta-center:hover,
 .button.primary.nav-cta-center:focus-visible,
 .button.primary.nav-cta-center:active {
-  transform: translate(-50%, -50%);
+  transform: var(--nav-cta-transform);
   background: var(--accent-dark);
   box-shadow: 0 10px 20px rgba(47, 109, 246, 0.28);
 }
@@ -1495,21 +1482,15 @@ main {
   }
 
   .nav-cta-center {
+    --nav-cta-transform: translate(-50%, -50%);
     order: 2;
-    position: static;
-    transform: none;
-    margin-left: 0;
-    font-size: 0.74rem;
-    padding: 5px 8px;
-    min-width: 64px;
-  }
-
-  .cta-full {
-    display: none;
-  }
-
-  .cta-short {
-    display: inline;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin: 0;
+    font-size: 0.78rem;
+    padding: 6px 12px;
+    min-width: 138px;
   }
 
   .nav-actions {
@@ -1546,10 +1527,15 @@ main {
     font-size: 0.94rem;
   }
 
+  .brand-logo {
+    width: 136px;
+    max-height: 42px;
+  }
+
   .nav-cta-center {
-    font-size: 0.68rem;
-    padding: 4px 7px;
-    min-width: 56px;
+    font-size: 0.74rem;
+    padding: 6px 10px;
+    min-width: 128px;
   }
 
   .mobile-nav {

@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { useI18n } from '../i18n'
 
@@ -45,10 +45,11 @@ function Navbar() {
     <header ref={headerRef} className="navbar">
       <div className="navbar-inner">
         <NavLink className="brand" to="/" onClick={() => setMenuOpen(false)}>
-          <span className="brand-mark" aria-hidden="true">
-            BS
-          </span>
-          <span className="brand-text">BathroomSheli</span>
+          <img
+            className="brand-logo"
+            src="/images/toilet-photo.png"
+            alt="Bathroom Sheli"
+          />
         </NavLink>
 
         <nav className={`nav-links ${menuOpen ? 'is-open' : ''}`} aria-label="Primary">
@@ -67,8 +68,7 @@ function Navbar() {
         </nav>
 
         <Link className="button primary nav-cta nav-cta-center" to="/contact" onClick={() => setMenuOpen(false)}>
-          <span className="cta-full">{strings.nav.cta}</span>
-          <span className="cta-short">Quote</span>
+          Request Quote
         </Link>
 
         <div className="nav-actions">
@@ -122,7 +122,7 @@ function Navbar() {
           </NavLink>
         ))}
         <Link className="button primary" to="/contact" onClick={() => setMenuOpen(false)}>
-          {strings.nav.cta}
+          Request Quote
         </Link>
       </div>
     </header>
