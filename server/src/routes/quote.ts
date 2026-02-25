@@ -42,6 +42,8 @@ router.post('/', async (req, res) => {
   const phone = asText(body.phone)
   const eventDate = normalizeEventDate(asText(body.eventDate))
   let eventEndDate = normalizeEventDate(asText(body.eventEndDate))
+  const startTime = asText(body.startTime)
+  const endTime = asText(body.endTime)
   const trailerType = normalizeTrailerType(asText(body.trailerType || body.trailer))
   const cityOrArea = asText(body.cityOrArea || body.city || body.area)
   const message = asText(body.message)
@@ -89,6 +91,8 @@ router.post('/', async (req, res) => {
     phone,
     eventDate,
     eventEndDate,
+    startTime,
+    endTime,
     cityOrArea,
     trailerType,
     message,

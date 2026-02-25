@@ -48,7 +48,7 @@ function Navbar() {
           <NavLink className="brand" to="/" onClick={() => setMenuOpen(false)}>
             <img
               className="brand-logo"
-              src="/images/toilet-photo.png"
+              src="/images/bathroomsheli-logo.png"
               alt="Bathroom Sheli"
             />
           </NavLink>

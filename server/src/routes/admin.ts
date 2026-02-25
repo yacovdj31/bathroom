@@ -75,7 +75,10 @@ const updateSchema = z.object({
   wantsAnotherDate: z.boolean().optional(),
   eventDate: z.string().optional(),
   eventEndDate: z.string().optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
   trailerType: z.enum(['2-stall', '3-stall']).optional(),
+  note: z.string().max(2000).optional(),
 })
 
 router.patch('/update', async (req, res) => {

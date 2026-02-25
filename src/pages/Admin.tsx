@@ -11,9 +11,12 @@ type QuoteItem = {
   trailerType: '2-stall' | '3-stall'
   eventDate: string
   eventEndDate?: string
+  startTime?: string
+  endTime?: string
   paidDownpayment: boolean
   paidFully: boolean
   answered: boolean
+  note?: string
   createdAt: string
 }
 
@@ -24,12 +27,16 @@ type ColumnKey =
   | 'lastName'
   | 'email'
   | 'phone'
-  | 'trailerType'
+  | 'status'
   | 'paidDownpayment'
   | 'paidFully'
-  | 'open'
+  | 'note'
+  | 'trailerType'
+  | 'dayCount'
   | 'eventDate'
   | 'eventEndDate'
+  | 'startTime'
+  | 'endTime'
   | 'createdAt'
 
 const columnConfig: { key: ColumnKey; label: string }[] = [
@@ -37,12 +44,16 @@ const columnConfig: { key: ColumnKey; label: string }[] = [
   { key: 'lastName', label: 'Last Name' },
   { key: 'email', label: 'Email' },
   { key: 'phone', label: 'Phone Number' },
-  { key: 'trailerType', label: 'Trailer' },
+  { key: 'status', label: 'Status' },
   { key: 'paidDownpayment', label: 'Paid Downpayment' },
   { key: 'paidFully', label: 'Paid Fully' },
-  { key: 'open', label: 'Open' },
+  { key: 'note', label: 'Note' },
+  { key: 'trailerType', label: 'Trailer' },
+  { key: 'dayCount', label: 'Days' },
   { key: 'eventDate', label: 'Start Date' },
   { key: 'eventEndDate', label: 'End Date' },
+  { key: 'startTime', label: 'Start Time' },
+  { key: 'endTime', label: 'End Time' },
   { key: 'createdAt', label: 'Submitted At' },
 ]
 
@@ -80,6 +91,13 @@ const addDays = (date: Date, days: number) => {
   return next
 }
 
+const toLocalIsoDay = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 const getDateRange = (start: string, end?: string) => {
   const from = asDate(start)
   const to = asDate(end || start)
@@ -95,18 +113,46 @@ const getDateRange = (start: string, end?: string) => {
   return dates
 }
 
+const getEventDayCount = (start: string, end?: string) => getDateRange(start, end).length || 1
+
+const isPastEvent = (item: QuoteItem) => {
+  const eventEnd = item.eventEndDate || item.eventDate
+  return eventEnd < toLocalIsoDay(new Date())
+}
+
+const isCompletedEvent = (item: QuoteItem) => {
+  return isPastEvent(item) && item.paidFully
+}
+
+const getStatusKind = (item: QuoteItem) => {
+  if (isPastEvent(item)) return item.paidFully ? 'completed' : 'inactive'
+  if (!item.answered) return 'active'
+  return 'inactive'
+}
+
+const getStatusLabel = (item: QuoteItem) => {
+  const kind = getStatusKind(item)
+  if (kind === 'active') return 'Active'
+  if (kind === 'completed') return 'Inactive (Completed)'
+  return 'Inactive'
+}
+
 const getRowTone = (item: QuoteItem) => {
+  const status = getStatusKind(item)
+  if (status === 'completed') return 'row-completed'
+  if (status === 'inactive') return 'row-inactive'
   if (item.paidFully) return 'row-paid-full'
   if (item.paidDownpayment) return 'row-paid-down'
-  if (!item.answered) return 'row-open'
-  return 'row-looked-over'
+  return 'row-active'
 }
 
 const getDayTone = (items: QuoteItem[]) => {
-  if (items.some((item) => item.paidFully)) return 'day-paid-full'
-  if (items.some((item) => item.paidDownpayment)) return 'day-paid-down'
-  if (items.some((item) => !item.answered)) return 'day-open'
-  return 'day-looked-over'
+  const activeItems = items.filter((item) => getStatusKind(item) === 'active')
+  if (activeItems.some((item) => item.paidFully)) return 'day-paid-full'
+  if (activeItems.some((item) => item.paidDownpayment)) return 'day-paid-down'
+  if (activeItems.length > 0) return 'day-active'
+  if (items.some((item) => isCompletedEvent(item))) return 'day-completed'
+  return 'day-inactive'
 }
 
 const toTsvRow = (item: QuoteItem) => [
@@ -114,12 +160,16 @@ const toTsvRow = (item: QuoteItem) => [
   item.lastName,
   item.email,
   item.phone,
-  item.trailerType,
+  getStatusLabel(item).toUpperCase(),
   boolText(item.paidDownpayment),
   boolText(item.paidFully),
-  boolText(!item.answered),
+  item.note || '',
+  item.trailerType,
+  String(getEventDayCount(item.eventDate, item.eventEndDate || item.eventDate)),
   item.eventDate,
   item.eventEndDate || item.eventDate,
+  item.startTime || '',
+  item.endTime || '',
   formatDateTime(item.createdAt),
 ].join('\t')
 
@@ -136,6 +186,9 @@ function Admin() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [paymentFilter, setPaymentFilter] = useState('all')
   const [copyStatus, setCopyStatus] = useState('')
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({})
+  const [noteModalId, setNoteModalId] = useState<string | null>(null)
+  const [noteModalDraft, setNoteModalDraft] = useState('')
   const [activeMonth, setActiveMonth] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
@@ -177,6 +230,18 @@ function Admin() {
     fetchQuotes(code)
   }, [code])
 
+  useEffect(() => {
+    setNoteDrafts((prev) => {
+      const next = { ...prev }
+      for (const item of quotes) {
+        if (next[item._id] === undefined) {
+          next[item._id] = item.note || ''
+        }
+      }
+      return next
+    })
+  }, [quotes])
+
   const submitCode = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const next = codeInput.trim()
@@ -207,6 +272,16 @@ function Admin() {
     if (!code) return
     setUpdatingId(id)
     setError('')
+
+    let previous: QuoteItem | null = null
+    setQuotes((prev) =>
+      prev.map((item) => {
+        if (item._id !== id) return item
+        previous = item
+        return { ...item, ...patch }
+      }),
+    )
+
     try {
       const response = await fetch('/api/admin/update', {
         method: 'PATCH',
@@ -223,6 +298,9 @@ function Admin() {
       const updated = payload?.item
       setQuotes((prev) => prev.map((item) => (item._id === id ? updated : item)))
     } catch (err) {
+      if (previous) {
+        setQuotes((prev) => prev.map((item) => (item._id === id ? previous! : item)))
+      }
       setError(err instanceof Error ? err.message : 'Update failed')
     } finally {
       setUpdatingId('')
@@ -239,8 +317,9 @@ function Admin() {
         }
 
         if (trailerFilter !== 'all' && item.trailerType !== trailerFilter) return false
-        if (statusFilter === 'open' && item.answered) return false
-        if (statusFilter === 'answered' && !item.answered) return false
+        const status = getStatusKind(item)
+        if (statusFilter === 'active' && status !== 'active') return false
+        if (statusFilter === 'inactive' && status === 'active') return false
 
         if (paymentFilter === 'none' && (item.paidDownpayment || item.paidFully)) return false
         if (paymentFilter === 'downpayment' && (!item.paidDownpayment || item.paidFully)) return false
@@ -308,6 +387,32 @@ function Admin() {
     copyText([header, ...rows].join('\n'), `Copied ${rows.length} rows`)
   }
 
+  const saveNoteNow = (id: string, value: string) => {
+    const current = quotes.find((item) => item._id === id)?.note || ''
+    if (current === value) {
+      return
+    }
+    patchQuote(id, { note: value })
+  }
+
+  const openNoteEditor = (item: QuoteItem) => {
+    const value = noteDrafts[item._id] ?? item.note ?? ''
+    setNoteModalId(item._id)
+    setNoteModalDraft(value)
+  }
+
+  const closeNoteEditor = () => {
+    setNoteModalId(null)
+    setNoteModalDraft('')
+  }
+
+  const saveNoteFromModal = () => {
+    if (!noteModalId) return
+    setNoteDrafts((prev) => ({ ...prev, [noteModalId]: noteModalDraft }))
+    saveNoteNow(noteModalId, noteModalDraft)
+    closeNoteEditor()
+  }
+
   if (!code) {
     return (
       <section className="admin-shell">
@@ -329,58 +434,65 @@ function Admin() {
       <div className="admin-panel">
         <div className="admin-top-nav">
           <div className="admin-top-brand">
-            <span className="brand-mark" aria-hidden="true">BS</span>
-            <span>BathroomSheli - Admin</span>
+            <img className="admin-brand-logo" src="/images/bathroomsheli-logo.png" alt="Bathroom Sheli" />
           </div>
           <div className="admin-top-right">
             <div className="admin-view-tabs" role="tablist" aria-label="Admin views">
               <button className={`admin-view-tab ${viewMode === 'sheets' ? 'is-active' : ''}`} type="button" onClick={() => setViewMode('sheets')}>Sheets</button>
               <button className={`admin-view-tab ${viewMode === 'schedule' ? 'is-active' : ''}`} type="button" onClick={() => setViewMode('schedule')}>Schedule</button>
             </div>
-            <button className="button secondary admin-mini-btn" type="button" onClick={() => fetchQuotes(code)}>Refresh</button>
-            <button className="button secondary admin-mini-btn" type="button" onClick={logout}>Lock</button>
+            <button className="button secondary admin-mini-btn" type="button" onClick={logout}>Logout</button>
           </div>
         </div>
 
-        <div className="admin-stat-badge">{filteredQuotes.length}</div>
+        <div className="admin-panel-meta">
+          <div className="admin-stat-badge">{filteredQuotes.length}</div>
+        </div>
 
         {viewMode === 'sheets' ? (
           <>
-            <div className="admin-export">
-              <button className="button secondary" type="button" onClick={copyAllRows}>Copy All (TSV)</button>
-              {copyStatus && <span className="muted">{copyStatus}</span>}
-            </div>
-
             <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Last Name</th>
-                    <th>Email</th>
-                    <th>Phone Number</th>
-                    <th>Trailer</th>
-                    <th>Downpayment</th>
-                    <th>Paid Fully</th>
-                    <th>Looked Over</th>
-                    <th>Start</th>
-                    <th>End</th>
-                    <th>Submitted</th>
+                    <th>#</th>
+                    <th>1. Name</th>
+                    <th>2. Last Name</th>
+                    <th>3. Email</th>
+                    <th>4. Phone Number</th>
+                    <th className="cell-center">5. Status</th>
+                    <th className="cell-center">6. Downpayment</th>
+                    <th className="cell-center">7. Paid Fully</th>
+                    <th>8. Note</th>
+                    <th>9. Trailer</th>
+                    <th className="cell-center">10. Days</th>
+                    <th>11. Start</th>
+                    <th>12. End</th>
+                    <th>13. Submitted</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredQuotes.map((item) => {
+                  {filteredQuotes.map((item, index) => {
                     const isUpdating = updatingId === item._id
+                    const statusKind = getStatusKind(item)
+                    const isPast = isPastEvent(item)
                     return (
                       <tr key={item._id} className={getRowTone(item)}>
+                        <td className="row-index-cell">{index + 1}.</td>
                         <td>{item.firstName}</td>
                         <td>{item.lastName}</td>
                         <td>{item.email}</td>
                         <td>{item.phone}</td>
+                        <td className="cell-center"><button className={`review-toggle is-${statusKind}`} type="button" disabled={isUpdating || isPast} onClick={() => patchQuote(item._id, { answered: !item.answered })}>{getStatusLabel(item)}</button></td>
+                        <td className="cell-center"><input type="checkbox" checked={item.paidDownpayment} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { paidDownpayment: event.target.checked, paidFully: event.target.checked ? item.paidFully : false })} /></td>
+                        <td className="cell-center"><input type="checkbox" checked={item.paidFully} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { paidFully: event.target.checked, paidDownpayment: event.target.checked ? true : item.paidDownpayment })} /></td>
+                        <td>
+                          <button className="admin-note-trigger" type="button" onClick={() => openNoteEditor(item)}>
+                            {(noteDrafts[item._id] ?? item.note ?? '').trim() ? 'Write more' : 'Write note'}
+                          </button>
+                        </td>
                         <td>{item.trailerType}</td>
-                        <td><input type="checkbox" checked={item.paidDownpayment} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { paidDownpayment: event.target.checked, paidFully: event.target.checked ? item.paidFully : false })} /></td>
-                        <td><input type="checkbox" checked={item.paidFully} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { paidFully: event.target.checked, paidDownpayment: event.target.checked ? true : item.paidDownpayment })} /></td>
-                        <td><button className="review-toggle" type="button" disabled={isUpdating} onClick={() => patchQuote(item._id, { answered: !item.answered })}>{item.answered ? 'Looked Over' : 'Mark'}</button></td>
+                        <td className="cell-center">{getEventDayCount(item.eventDate, item.eventEndDate || item.eventDate)}</td>
                         <td>{item.eventDate}</td>
                         <td>{item.eventEndDate || item.eventDate}</td>
                         <td>{formatDateTime(item.createdAt)}</td>
@@ -395,12 +507,6 @@ function Admin() {
               <div className="admin-filters-head">
                 <h2>Filters</h2>
                 <span className="muted">{activeFilterCount} active</span>
-              </div>
-
-              <div className="admin-quick-filters compact">
-                <button className="button secondary" type="button" onClick={() => setPaymentFilter('none')}>Unpaid</button>
-                <button className="button secondary" type="button" onClick={() => setPaymentFilter('full')}>Paid</button>
-                <button className="button secondary" type="button" onClick={resetFilters}>Clear Filters</button>
               </div>
 
               <div className="admin-filters-grid compact">
@@ -420,8 +526,8 @@ function Admin() {
                   Status
                   <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
                     <option value="all">All</option>
-                    <option value="open">Open</option>
-                    <option value="answered">Looked Over</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
                   </select>
                 </label>
                 <label>
@@ -434,6 +540,15 @@ function Admin() {
                   </select>
                 </label>
               </div>
+
+              <div className="admin-quick-filters compact">
+                <button className="button secondary" type="button" onClick={resetFilters}>Clear Filters</button>
+              </div>
+            </div>
+
+            <div className="admin-export">
+              <button className="button secondary" type="button" onClick={copyAllRows}>Copy All</button>
+              {copyStatus && <span className="muted">{copyStatus}</span>}
             </div>
           </>
         ) : (
@@ -445,10 +560,11 @@ function Admin() {
             </div>
 
             <div className="schedule-legend">
-              <span className="legend-item legend-open">Open</span>
+              <span className="legend-item legend-open">Active</span>
               <span className="legend-item legend-down">Downpayment</span>
               <span className="legend-item legend-full">Paid Fully</span>
-              <span className="legend-item legend-reviewed">Looked Over</span>
+              <span className="legend-item legend-completed">Inactive (Completed)</span>
+              <span className="legend-item legend-reviewed">Inactive</span>
             </div>
 
             <div className="calendar-grid calendar-days-row">
@@ -478,17 +594,37 @@ function Admin() {
           <div className="admin-modal-backdrop" onClick={() => setSelectedDay(null)}>
             <div className="admin-modal" onClick={(event) => event.stopPropagation()}>
               <div className="admin-modal-head">
-                <h3>{formatDateLabel(selectedDay)}</h3>
+                <div>
+                  <h3>{formatDateLabel(selectedDay)}</h3>
+                  <p className="admin-modal-count">{selectedDayItems.length} request(s) on this day</p>
+                </div>
                 <button className="button secondary" type="button" onClick={() => setSelectedDay(null)}>Close</button>
               </div>
 
               <div className="admin-modal-list">
-                {selectedDayItems.map((item) => {
+                {selectedDayItems.map((item, index) => {
                   const isUpdating = updatingId === item._id
+                  const statusKind = getStatusKind(item)
+                  const isPast = isPastEvent(item)
+                  const isMultiDay = (item.eventEndDate || item.eventDate) > item.eventDate
                   return (
                     <article key={item._id} className={`admin-modal-card ${getRowTone(item)}`}>
-                      <p><strong>{item.firstName} {item.lastName}</strong> ({item.trailerType})</p>
-                      <p>{item.email} | {item.phone}</p>
+                      <div className="admin-modal-card-head">
+                        <p>
+                          <span className="admin-item-index">{index + 1}.</span> <strong>{item.firstName} {item.lastName}</strong>
+                          <span className="admin-head-links">
+                            {' | '}<a href={`mailto:${item.email}`}>{item.email}</a>{' | '}<a href={`tel:${item.phone.replace(/\D/g, '')}`}>{item.phone}</a>
+                          </span>
+                        </p>
+                        <span className={`modal-status-pill is-${statusKind}`}>
+                          {getStatusLabel(item)}
+                        </span>
+                      </div>
+                      <p className="admin-modal-date-line">
+                        {item.eventDate === (item.eventEndDate || item.eventDate)
+                          ? `Date: ${item.eventDate}`
+                          : `Dates: ${item.eventDate} to ${item.eventEndDate || item.eventDate}`}
+                      </p>
                       <div className="admin-modal-fields">
                         <label>
                           Start
@@ -499,22 +635,60 @@ function Admin() {
                           <input type="date" value={item.eventEndDate || item.eventDate} min={item.eventDate} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { eventEndDate: event.target.value })} />
                         </label>
                         <label>
+                          {isMultiDay ? 'Start Time (first day)' : 'Start Time'}
+                          <input type="time" value={item.startTime || ''} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { startTime: event.target.value })} />
+                        </label>
+                        <label>
+                          {isMultiDay ? 'End Time (last day)' : 'End Time'}
+                          <input type="time" value={item.endTime || ''} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { endTime: event.target.value })} />
+                        </label>
+                      </div>
+
+                      <div className="admin-modal-meta-row">
+                        <label>
                           Trailer
                           <select value={item.trailerType} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { trailerType: event.target.value as '2-stall' | '3-stall' })}>
                             <option value="2-stall">2-Stall</option>
                             <option value="3-stall">3-Stall</option>
                           </select>
                         </label>
+                        <button className="admin-note-trigger" type="button" onClick={() => openNoteEditor(item)}>
+                          {(noteDrafts[item._id] ?? item.note ?? '').trim() ? 'Write more' : 'Write note'}
+                        </button>
                       </div>
 
                       <div className="admin-modal-toggles">
                         <label><input type="checkbox" checked={item.paidDownpayment} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { paidDownpayment: event.target.checked, paidFully: event.target.checked ? item.paidFully : false })} /> Downpayment</label>
                         <label><input type="checkbox" checked={item.paidFully} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { paidFully: event.target.checked, paidDownpayment: event.target.checked ? true : item.paidDownpayment })} /> Paid Fully</label>
-                        <button className="review-toggle" type="button" disabled={isUpdating} onClick={() => patchQuote(item._id, { answered: !item.answered })}>{item.answered ? 'Looked Over' : 'Mark Looked Over'}</button>
+                        <button className={`review-toggle is-${statusKind}`} type="button" disabled={isUpdating || isPast} onClick={() => patchQuote(item._id, { answered: !item.answered })}>{getStatusLabel(item)}</button>
                       </div>
                     </article>
                   )
                 })}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {noteModalId ? (
+          <div className="admin-modal-backdrop" onClick={closeNoteEditor}>
+            <div className="admin-modal admin-note-modal" onClick={(event) => event.stopPropagation()}>
+              <div className="admin-modal-head">
+                <h3>Notes</h3>
+                <button className="button secondary" type="button" onClick={closeNoteEditor}>Close</button>
+              </div>
+              <div className="admin-note-sheet">
+                <textarea
+                  className="admin-note-sheet-input"
+                  rows={10}
+                  value={noteModalDraft}
+                  placeholder="Write notes for this request..."
+                  onChange={(event) => setNoteModalDraft(event.target.value)}
+                />
+                <div className="admin-note-sheet-actions">
+                  <button className="button secondary" type="button" onClick={closeNoteEditor}>Cancel</button>
+                  <button className="button primary" type="button" onClick={saveNoteFromModal}>Save note</button>
+                </div>
               </div>
             </div>
           </div>

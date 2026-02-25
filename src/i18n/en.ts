@@ -168,6 +168,7 @@ export const en = {
     title: 'Contact the owner directly',
     subtitle: 'Fast response by email or form. We keep it simple.',
     cards: [
+      { title: 'Phone', text: '053-344-1353' },
       { title: 'Email', text: 'bathroomsheli@gmail.com' },
       { title: 'Response time', text: 'Usually within a few hours' },
     ],
@@ -211,6 +212,7 @@ export const en = {
     serviceTitle: 'Service area',
     serviceText: 'Nationwide coverage with emphasis on Tel Aviv and central districts.',
     contactTitle: 'Contact',
+    phone: '053-344-1353',
     email: 'bathroomsheli@gmail.com',
     note: '© 2026 bathroomsheli. All rights reserved.',
   },

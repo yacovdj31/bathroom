@@ -3,6 +3,8 @@ import IncludedFeatures from '../components/IncludedFeatures'
 import QuoteForm from '../components/QuoteForm'
 import { useI18n } from '../i18n'
 
+const PHONE_NUMBER = '053-344-1353'
+
 function Home() {
   const { strings } = useI18n()
 
@@ -22,6 +24,9 @@ function Home() {
               <Link className="button primary hero-primary" to="/contact">
                 {strings.home.hero.primaryCta}
               </Link>
+              <a className="hero-phone-link" href={`tel:${PHONE_NUMBER.replace(/-/g, '')}`}>
+                {PHONE_NUMBER}
+              </a>
             </div>
           </div>
         </div>

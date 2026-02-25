@@ -1,7 +1,10 @@
 import { useI18n } from '../i18n'
 
+const PHONE_NUMBER = '053-344-1353'
+
 function Footer() {
   const { strings } = useI18n()
+  const phone = strings.footer.phone || PHONE_NUMBER
 
   return (
     <footer className="footer">
@@ -16,6 +19,9 @@ function Footer() {
         </div>
         <div>
           <p className="footer-title">{strings.footer.contactTitle}</p>
+          <p>
+            <a href={`tel:${phone.replace(/-/g, '')}`}>{phone}</a>
+          </p>
           <p>
             <a href={`mailto:${strings.footer.email}`}>{strings.footer.email}</a>
           </p>
