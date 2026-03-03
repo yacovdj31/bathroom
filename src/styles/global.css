@@ -3481,3 +3481,114 @@ body {
   background: #cfd6de !important;
   border-bottom: 1px solid rgba(57, 72, 89, 0.28) !important;
 }
+
+/* Global button normalization: white base + blue border/text */
+.app .button,
+.app .button.primary,
+.app .button.secondary,
+.app .button.primary.nav-cta-center,
+.app .event-type-link,
+.app .items-category,
+.app .lang-button,
+.admin-shell .admin-note-trigger,
+.admin-shell .review-toggle,
+.admin-shell .admin-view-tab,
+.admin-shell .admin-mini-btn {
+  background: #ffffff !important;
+  color: #1e3a8a !important;
+  border: 1px solid rgba(59, 130, 246, 0.55) !important;
+  box-shadow: none !important;
+}
+
+.app .button:hover,
+.app .button:focus-visible,
+.app .button.primary:hover,
+.app .button.primary:focus-visible,
+.app .button.secondary:hover,
+.app .button.secondary:focus-visible,
+.app .button.primary.nav-cta-center:hover,
+.app .button.primary.nav-cta-center:focus-visible,
+.app .button.primary.nav-cta-center:active,
+.app .event-type-link:hover,
+.app .event-type-link:focus-visible,
+.app .items-category:hover,
+.app .items-category:focus-visible,
+.app .items-category.is-active,
+.app .lang-button:hover,
+.app .lang-button:focus-visible,
+.app .lang-button.is-active,
+.admin-shell .admin-note-trigger:hover,
+.admin-shell .admin-note-trigger:focus-visible,
+.admin-shell .review-toggle:hover,
+.admin-shell .review-toggle:focus-visible,
+.admin-shell .admin-view-tab:hover,
+.admin-shell .admin-view-tab:focus-visible,
+.admin-shell .admin-view-tab.is-active,
+.admin-shell .admin-mini-btn:hover,
+.admin-shell .admin-mini-btn:focus-visible {
+  background: #1e63a7 !important;
+  color: #ffffff !important;
+  border-color: #1e63a7 !important;
+  box-shadow: none !important;
+}
+
+/* Final border cleanup: remove brown borders site-wide and use blue system border */
+.app .hero-banner,
+.app .event-type-image-shell,
+.app .about-event-photo,
+.app .about-image,
+.app .about-photo,
+.app .items-gallery,
+.app .items-gallery-main,
+.app .items-thumb,
+.app .event-type-link,
+.app .card,
+.app .feature-card,
+.app .included-item,
+.app .form-shell {
+  border-color: rgba(59, 130, 246, 0.35) !important;
+}
+
+/* Trailers page image fit: always show full photo, never crop */
+.app .items-gallery-main {
+  background: #ffffff !important;
+}
+
+.app .items-gallery-main img,
+.app .items-gallery-main img.is-plan {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  background: #ffffff !important;
+}
+
+.app .items-thumb img {
+  object-fit: contain !important;
+}
+
+/* Language toggle: blue wrapper border, no border on unselected EN/HE */
+.app .lang-toggle {
+  border: 1px solid rgba(59, 130, 246, 0.55) !important;
+  background: #ffffff !important;
+}
+
+.app .lang-button {
+  border: 0 !important;
+  background: transparent !important;
+  color: #1e3a8a !important;
+  box-shadow: none !important;
+}
+
+.app .lang-button:hover,
+.app .lang-button:focus-visible {
+  border: 0 !important;
+  background: rgba(30, 99, 167, 0.12) !important;
+  color: #1e3a8a !important;
+}
+
+.app .lang-button.is-active {
+  border: 1px solid #1e63a7 !important;
+  background: #1e63a7 !important;
+  color: #ffffff !important;
+}
