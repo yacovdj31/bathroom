@@ -28,43 +28,50 @@ router.get('/quotes', async (req, res) => {
   const auth = verifyAdmin(code)
   if (!auth.ok) return res.status(auth.status).json({ ok: false, error: auth.error })
 
-  const { from, to, eventFrom, eventTo, trailerType, answered, payment } = req.query
-  const query: Record<string, unknown> = {}
+  try {
+    const { from, to, eventFrom, eventTo, trailerType, answered, payment } = req.query
+    const query: Record<string, unknown> = {}
 
-  if (typeof from === 'string' || typeof to === 'string') {
-    query.createdAt = {}
-    if (typeof from === 'string' && from) {
-      ;(query.createdAt as Record<string, Date>).$gte = new Date(`${from}T00:00:00.000Z`)
+    if (typeof from === 'string' || typeof to === 'string') {
+      query.createdAt = {}
+      if (typeof from === 'string' && from) {
+        ;(query.createdAt as Record<string, Date>).$gte = new Date(`${from}T00:00:00.000Z`)
+      }
+      if (typeof to === 'string' && to) {
+        ;(query.createdAt as Record<string, Date>).$lte = new Date(`${to}T23:59:59.999Z`)
+      }
     }
-    if (typeof to === 'string' && to) {
-      ;(query.createdAt as Record<string, Date>).$lte = new Date(`${to}T23:59:59.999Z`)
+
+    if (typeof eventFrom === 'string' && eventFrom) {
+      query.eventDate = { ...(query.eventDate as object), $gte: eventFrom }
     }
-  }
+    if (typeof eventTo === 'string' && eventTo) {
+      query.eventDate = { ...(query.eventDate as object), $lte: eventTo }
+    }
+    if (trailerType === '2-stall' || trailerType === '3-stall') {
+      query.trailerType = trailerType
+    }
+    if (answered === 'true' || answered === 'false') {
+      query.answered = answered === 'true'
+    }
+    if (payment === 'full') {
+      query.paidFully = true
+    } else if (payment === 'downpayment') {
+      query.paidDownpayment = true
+      query.paidFully = false
+    } else if (payment === 'none') {
+      query.paidDownpayment = false
+      query.paidFully = false
+    }
 
-  if (typeof eventFrom === 'string' && eventFrom) {
-    query.eventDate = { ...(query.eventDate as object), $gte: eventFrom }
+    const items = await Quote.find(query).sort({ createdAt: -1 }).lean()
+    return res.json({ ok: true, count: items.length, items })
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      error: error instanceof Error ? error.message : 'Failed to load quotes',
+    })
   }
-  if (typeof eventTo === 'string' && eventTo) {
-    query.eventDate = { ...(query.eventDate as object), $lte: eventTo }
-  }
-  if (trailerType === '2-stall' || trailerType === '3-stall') {
-    query.trailerType = trailerType
-  }
-  if (answered === 'true' || answered === 'false') {
-    query.answered = answered === 'true'
-  }
-  if (payment === 'full') {
-    query.paidFully = true
-  } else if (payment === 'downpayment') {
-    query.paidDownpayment = true
-    query.paidFully = false
-  } else if (payment === 'none') {
-    query.paidDownpayment = false
-    query.paidFully = false
-  }
-
-  const items = await Quote.find(query).sort({ createdAt: -1 }).lean()
-  return res.json({ ok: true, count: items.length, items })
 })
 
 const updateSchema = z.object({
@@ -112,9 +119,16 @@ router.patch('/update', async (req, res) => {
     update.answeredAt = update.answered ? new Date() : null
   }
 
-  const item = await Quote.findByIdAndUpdate(id, update, { new: true }).lean()
-  if (!item) return res.status(404).json({ ok: false, error: 'Quote not found' })
-  return res.json({ ok: true, item })
+  try {
+    const item = await Quote.findByIdAndUpdate(id, update, { new: true }).lean()
+    if (!item) return res.status(404).json({ ok: false, error: 'Quote not found' })
+    return res.json({ ok: true, item })
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      error: error instanceof Error ? error.message : 'Update failed',
+    })
+  }
 })
 
 export default router

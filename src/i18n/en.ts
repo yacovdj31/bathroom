@@ -4,13 +4,13 @@ export const en = {
   nav: {
     links: [
       { label: 'Home', path: '/' },
-      { label: 'Items', path: '/items' },
+      { label: 'Trailers', path: '/items' },
       { label: 'About', path: '/about' },
       { label: 'Contact', path: '/contact' },
     ],
     cta: 'Request Quote',
     langLabel: 'Language',
-    lang: { en: 'EN', he: 'HE' },
+    lang: { en: 'EN', he: 'אב' },
     menu: 'Menu',
   },
   home: {
@@ -87,7 +87,7 @@ export const en = {
     },
   },
   items: {
-    title: 'Our items',
+    title: 'Our trailers',
     subtitle: 'Premium portable bathroom trailers designed for comfort and style.',
     cards: [
       {

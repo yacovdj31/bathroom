@@ -53,7 +53,7 @@ function Items() {
 
   return (
     <div>
-      <section className="section items-section">
+      <section id="top" className="section items-section">
         <div className="section-header">
           <h1>{strings.items.title}</h1>
           <p className="muted">{strings.items.subtitle}</p>

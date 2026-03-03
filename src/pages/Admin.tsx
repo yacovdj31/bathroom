@@ -17,10 +17,12 @@ type QuoteItem = {
   paidFully: boolean
   answered: boolean
   note?: string
+  message?: string
   createdAt: string
 }
 
 const ADMIN_STORAGE_KEY = 'bathroomsheli_admin_code'
+type TimeFilter = 'all' | 'past' | 'future'
 
 type ColumnKey =
   | 'firstName'
@@ -31,6 +33,7 @@ type ColumnKey =
   | 'paidDownpayment'
   | 'paidFully'
   | 'note'
+  | 'message'
   | 'trailerType'
   | 'dayCount'
   | 'eventDate'
@@ -48,6 +51,7 @@ const columnConfig: { key: ColumnKey; label: string }[] = [
   { key: 'paidDownpayment', label: 'Paid Downpayment' },
   { key: 'paidFully', label: 'Paid Fully' },
   { key: 'note', label: 'Note' },
+  { key: 'message', label: 'User Message' },
   { key: 'trailerType', label: 'Trailer' },
   { key: 'dayCount', label: 'Days' },
   { key: 'eventDate', label: 'Start Date' },
@@ -83,8 +87,6 @@ const asDate = (value: string) => {
   return date
 }
 
-const toIsoDay = (date: Date) => date.toISOString().slice(0, 10)
-
 const addDays = (date: Date, days: number) => {
   const next = new Date(date)
   next.setDate(next.getDate() + days)
@@ -107,7 +109,7 @@ const getDateRange = (start: string, end?: string) => {
   const dates: string[] = []
   let current = from
   while (current <= safeEnd) {
-    dates.push(toIsoDay(current))
+    dates.push(toLocalIsoDay(current))
     current = addDays(current, 1)
   }
   return dates
@@ -116,12 +118,10 @@ const getDateRange = (start: string, end?: string) => {
 const getEventDayCount = (start: string, end?: string) => getDateRange(start, end).length || 1
 
 const isPastEvent = (item: QuoteItem) => {
-  const eventEnd = item.eventEndDate || item.eventDate
-  return eventEnd < toLocalIsoDay(new Date())
-}
-
-const isCompletedEvent = (item: QuoteItem) => {
-  return isPastEvent(item) && item.paidFully
+  const eventEnd = asDate(item.eventEndDate || item.eventDate)
+  const today = asDate(toLocalIsoDay(new Date()))
+  if (!eventEnd || !today) return false
+  return eventEnd.getTime() < today.getTime()
 }
 
 const getStatusKind = (item: QuoteItem) => {
@@ -146,13 +146,72 @@ const getRowTone = (item: QuoteItem) => {
   return 'row-active'
 }
 
-const getDayTone = (items: QuoteItem[]) => {
-  const activeItems = items.filter((item) => getStatusKind(item) === 'active')
-  if (activeItems.some((item) => item.paidFully)) return 'day-paid-full'
-  if (activeItems.some((item) => item.paidDownpayment)) return 'day-paid-down'
-  if (activeItems.length > 0) return 'day-active'
-  if (items.some((item) => isCompletedEvent(item))) return 'day-completed'
-  return 'day-inactive'
+const getDaySegmentTone = (item: QuoteItem) => {
+  const status = getStatusKind(item)
+  if (status === 'completed') return 'segment-completed'
+  if (status === 'inactive') return 'segment-inactive'
+  if (item.paidFully) return 'segment-paid-full'
+  if (item.paidDownpayment) return 'segment-paid-down'
+  return 'segment-active'
+}
+
+const getRangeEdgeState = (item: QuoteItem, dayIso: string) => {
+  const end = item.eventEndDate || item.eventDate
+  const fromPrev = dayIso > item.eventDate && dayIso <= end
+  const toNext = dayIso >= item.eventDate && dayIso < end
+  return { fromPrev, toNext }
+}
+
+const isFutureOrTodayEvent = (item: QuoteItem) => {
+  const eventEnd = asDate(item.eventEndDate || item.eventDate)
+  const today = asDate(toLocalIsoDay(new Date()))
+  if (!eventEnd || !today) return false
+  return eventEnd.getTime() >= today.getTime()
+}
+
+const matchesTimeFilter = (item: QuoteItem, filter: TimeFilter) => {
+  if (filter === 'all') return true
+  const future = isFutureOrTodayEvent(item)
+  return filter === 'future' ? future : !future
+}
+
+const getClippedRangeForView = (item: QuoteItem, viewStartIso: string, viewEndIso: string) => {
+  const start = item.eventDate > viewStartIso ? item.eventDate : viewStartIso
+  const endRaw = item.eventEndDate || item.eventDate
+  const end = endRaw < viewEndIso ? endRaw : viewEndIso
+  if (end < start) return null
+  return { start, end }
+}
+
+const buildLaneMap = (items: QuoteItem[], viewStartIso: string, viewEndIso: string) => {
+  const laneById = new Map<string, number>()
+  const laneEndByIndex: string[] = []
+
+  const sorted = [...items]
+    .filter((item) => getClippedRangeForView(item, viewStartIso, viewEndIso))
+    .sort((a, b) => {
+      if (a.eventDate !== b.eventDate) return a.eventDate.localeCompare(b.eventDate)
+      const aEnd = a.eventEndDate || a.eventDate
+      const bEnd = b.eventEndDate || b.eventDate
+      if (aEnd !== bEnd) return aEnd.localeCompare(bEnd)
+      return a._id.localeCompare(b._id)
+    })
+
+  for (const item of sorted) {
+    const clipped = getClippedRangeForView(item, viewStartIso, viewEndIso)
+    if (!clipped) continue
+    let lane = 0
+    while (lane < laneEndByIndex.length && clipped.start <= laneEndByIndex[lane]) {
+      lane += 1
+    }
+    if (lane === laneEndByIndex.length) {
+      laneEndByIndex.push(clipped.end)
+    } else {
+      laneEndByIndex[lane] = clipped.end
+    }
+    laneById.set(item._id, lane)
+  }
+  return laneById
 }
 
 const toTsvRow = (item: QuoteItem) => [
@@ -164,6 +223,7 @@ const toTsvRow = (item: QuoteItem) => [
   boolText(item.paidDownpayment),
   boolText(item.paidFully),
   item.note || '',
+  item.message || '',
   item.trailerType,
   String(getEventDayCount(item.eventDate, item.eventEndDate || item.eventDate)),
   item.eventDate,
@@ -172,6 +232,25 @@ const toTsvRow = (item: QuoteItem) => [
   item.endTime || '',
   formatDateTime(item.createdAt),
 ].join('\t')
+
+const parseApiPayload = async (response: Response) => {
+  const contentType = response.headers.get('content-type') || ''
+  if (contentType.includes('application/json')) {
+    try {
+      return await response.json()
+    } catch {
+      return null
+    }
+  }
+
+  const text = await response.text()
+  if (!text) return null
+  try {
+    return JSON.parse(text)
+  } catch {
+    return { error: text }
+  }
+}
 
 function Admin() {
   const [codeInput, setCodeInput] = useState('')
@@ -185,10 +264,12 @@ function Admin() {
   const [trailerFilter, setTrailerFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [paymentFilter, setPaymentFilter] = useState('all')
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all')
   const [copyStatus, setCopyStatus] = useState('')
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({})
   const [noteModalId, setNoteModalId] = useState<string | null>(null)
   const [noteModalDraft, setNoteModalDraft] = useState('')
+  const [messageModal, setMessageModal] = useState<{ name: string; message: string } | null>(null)
   const [activeMonth, setActiveMonth] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
@@ -211,9 +292,9 @@ function Admin() {
       const response = await fetch('/api/admin/quotes', {
         headers: { 'x-admin-code': adminCode },
       })
-      const payload = await response.json()
+      const payload = await parseApiPayload(response)
       if (!response.ok) {
-        throw new Error(payload?.error || 'Failed to load quotes')
+        throw new Error(payload?.error || `Failed to load quotes (${response.status})`)
       }
       const items = Array.isArray(payload?.items) ? payload.items : []
       setQuotes(items)
@@ -266,6 +347,7 @@ function Admin() {
     setTrailerFilter('all')
     setStatusFilter('all')
     setPaymentFilter('all')
+    setTimeFilter('all')
   }
 
   const patchQuote = async (id: string, patch: Partial<QuoteItem>) => {
@@ -291,9 +373,9 @@ function Admin() {
         },
         body: JSON.stringify({ id, ...patch }),
       })
-      const payload = await response.json()
+      const payload = await parseApiPayload(response)
       if (!response.ok) {
-        throw new Error(payload?.error || 'Update failed')
+        throw new Error(payload?.error || `Update failed (${response.status})`)
       }
       const updated = payload?.item
       setQuotes((prev) => prev.map((item) => (item._id === id ? updated : item)))
@@ -324,20 +406,25 @@ function Admin() {
         if (paymentFilter === 'none' && (item.paidDownpayment || item.paidFully)) return false
         if (paymentFilter === 'downpayment' && (!item.paidDownpayment || item.paidFully)) return false
         if (paymentFilter === 'full' && !item.paidFully) return false
+        if (!matchesTimeFilter(item, timeFilter)) return false
 
         return true
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  }, [quotes, search, trailerFilter, statusFilter, paymentFilter])
+  }, [quotes, search, trailerFilter, statusFilter, paymentFilter, timeFilter])
 
   const activeFilterCount = useMemo(() => {
-    return [Boolean(search.trim()), trailerFilter !== 'all', statusFilter !== 'all', paymentFilter !== 'all'].filter(Boolean)
+    return [Boolean(search.trim()), trailerFilter !== 'all', statusFilter !== 'all', paymentFilter !== 'all', timeFilter !== 'all'].filter(Boolean)
       .length
-  }, [search, trailerFilter, statusFilter, paymentFilter])
+  }, [search, trailerFilter, statusFilter, paymentFilter, timeFilter])
 
   const quotesByDay = useMemo(() => {
     const index = new Map<string, QuoteItem[]>()
-    for (const item of quotes) {
+    const orderedQuotes = [...quotes].sort((a, b) => {
+      if (a.eventDate !== b.eventDate) return a.eventDate.localeCompare(b.eventDate)
+      return a._id.localeCompare(b._id)
+    })
+    for (const item of orderedQuotes) {
       const days = getDateRange(item.eventDate, item.eventEndDate || item.eventDate)
       for (const day of days) {
         if (!index.has(day)) index.set(day, [])
@@ -364,10 +451,31 @@ function Admin() {
     return days
   }, [activeMonth])
 
+  const laneById = useMemo(() => {
+    if (calendarDays.length === 0) return new Map<string, number>()
+    const viewStartIso = toLocalIsoDay(calendarDays[0])
+    const viewEndIso = toLocalIsoDay(calendarDays[calendarDays.length - 1])
+    return buildLaneMap(quotes, viewStartIso, viewEndIso)
+  }, [quotes, calendarDays])
+
+  const laneCount = useMemo(() => {
+    let maxLane = 0
+    laneById.forEach((lane) => {
+      if (lane > maxLane) maxLane = lane
+    })
+    return Math.max(maxLane + 1, 1)
+  }, [laneById])
+
   const selectedDayItems = useMemo(() => {
     if (!selectedDay) return []
-    return quotesByDay.get(selectedDay) || []
-  }, [quotesByDay, selectedDay])
+    const items = quotesByDay.get(selectedDay) || []
+    return [...items].sort((a, b) => {
+      const laneA = laneById.get(a._id) ?? 0
+      const laneB = laneById.get(b._id) ?? 0
+      if (laneA !== laneB) return laneA - laneB
+      return a._id.localeCompare(b._id)
+    })
+  }, [quotesByDay, selectedDay, laneById])
 
   const copyText = async (text: string, message: string) => {
     if (!text) return
@@ -445,30 +553,27 @@ function Admin() {
           </div>
         </div>
 
-        <div className="admin-panel-meta">
-          <div className="admin-stat-badge">{filteredQuotes.length}</div>
-        </div>
-
         {viewMode === 'sheets' ? (
           <>
             <div className="admin-table-wrap">
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>1. Name</th>
-                    <th>2. Last Name</th>
-                    <th>3. Email</th>
-                    <th>4. Phone Number</th>
-                    <th className="cell-center">5. Status</th>
-                    <th className="cell-center">6. Downpayment</th>
-                    <th className="cell-center">7. Paid Fully</th>
-                    <th>8. Note</th>
-                    <th>9. Trailer</th>
-                    <th className="cell-center">10. Days</th>
-                    <th>11. Start</th>
-                    <th>12. End</th>
-                    <th>13. Submitted</th>
+                    <th aria-label="Row" />
+                    <th>Name</th>
+                    <th>Last Name</th>
+                    <th>Email</th>
+                    <th>Phone Number</th>
+                    <th className="cell-center">Status</th>
+                    <th className="cell-center">Downpayment</th>
+                    <th className="cell-center">Paid Fully</th>
+                    <th>Note</th>
+                    <th>User Message</th>
+                    <th>Trailer</th>
+                    <th className="cell-center">Days</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Submitted</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -488,8 +593,19 @@ function Admin() {
                         <td className="cell-center"><input type="checkbox" checked={item.paidFully} disabled={isUpdating} onChange={(event) => patchQuote(item._id, { paidFully: event.target.checked, paidDownpayment: event.target.checked ? true : item.paidDownpayment })} /></td>
                         <td>
                           <button className="admin-note-trigger" type="button" onClick={() => openNoteEditor(item)}>
-                            {(noteDrafts[item._id] ?? item.note ?? '').trim() ? 'Write more' : 'Write note'}
+                            Notes
                           </button>
+                        </td>
+                        <td>
+                          {item.message?.trim() ? (
+                            <button
+                              className="admin-note-trigger"
+                              type="button"
+                              onClick={() => setMessageModal({ name: `${item.firstName} ${item.lastName}`.trim(), message: item.message || '' })}
+                            >
+                              Message
+                            </button>
+                          ) : '-'}
                         </td>
                         <td>{item.trailerType}</td>
                         <td className="cell-center">{getEventDayCount(item.eventDate, item.eventEndDate || item.eventDate)}</td>
@@ -506,7 +622,10 @@ function Admin() {
             <div className="admin-filters-card compact">
               <div className="admin-filters-head">
                 <h2>Filters</h2>
-                <span className="muted">{activeFilterCount} active</span>
+                <div className="admin-filters-topline">
+                  <span className="admin-stat-badge">{filteredQuotes.length}</span>
+                  <span className="muted">{activeFilterCount} active</span>
+                </div>
               </div>
 
               <div className="admin-filters-grid compact">
@@ -539,24 +658,31 @@ function Admin() {
                     <option value="full">Paid Fully</option>
                   </select>
                 </label>
+                <label>
+                  Time
+                  <select value={timeFilter} onChange={(event) => setTimeFilter(event.target.value as TimeFilter)} aria-label="Time filter">
+                    <option value="all">All dates</option>
+                    <option value="future">Future only</option>
+                    <option value="past">Past only</option>
+                  </select>
+                </label>
               </div>
 
               <div className="admin-quick-filters compact">
-                <button className="button secondary" type="button" onClick={resetFilters}>Clear Filters</button>
+                <button className="button primary" type="button" onClick={resetFilters}>Clear Filters</button>
               </div>
-            </div>
-
-            <div className="admin-export">
-              <button className="button secondary" type="button" onClick={copyAllRows}>Copy All</button>
-              {copyStatus && <span className="muted">{copyStatus}</span>}
+              <div className="admin-export">
+                <button className="button primary" type="button" onClick={copyAllRows}>Copy All</button>
+                {copyStatus && <span className="muted">{copyStatus}</span>}
+              </div>
             </div>
           </>
         ) : (
           <div className="schedule-panel">
             <div className="schedule-head">
-              <button className="button secondary" type="button" onClick={() => setActiveMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}>Previous</button>
+              <button className="button secondary schedule-arrow-btn" type="button" aria-label="Previous month" onClick={() => setActiveMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}>←</button>
               <h2>{monthLabel(activeMonth)}</h2>
-              <button className="button secondary" type="button" onClick={() => setActiveMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}>Next</button>
+              <button className="button secondary schedule-arrow-btn" type="button" aria-label="Next month" onClick={() => setActiveMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}>→</button>
             </div>
 
             <div className="schedule-legend">
@@ -565,6 +691,7 @@ function Admin() {
               <span className="legend-item legend-full">Paid Fully</span>
               <span className="legend-item legend-completed">Inactive (Completed)</span>
               <span className="legend-item legend-reviewed">Inactive</span>
+              <span className="legend-item legend-flow">Multi-day flow</span>
             </div>
 
             <div className="calendar-grid calendar-days-row">
@@ -575,14 +702,42 @@ function Admin() {
 
             <div className="calendar-grid">
               {calendarDays.map((day) => {
-                const iso = toIsoDay(day)
+                const iso = toLocalIsoDay(day)
                 const items = quotesByDay.get(iso) || []
                 const inMonth = day.getMonth() === activeMonth.getMonth()
-                const tone = items.length > 0 ? getDayTone(items) : ''
+                const sortedItems = [...items].sort((a, b) => {
+                  const laneA = laneById.get(a._id) ?? 0
+                  const laneB = laneById.get(b._id) ?? 0
+                  if (laneA !== laneB) return laneA - laneB
+                  return a._id.localeCompare(b._id)
+                })
+                const onlyItem = sortedItems.length === 1 ? sortedItems[0] : null
+                const onlyItemLane = onlyItem ? (laneById.get(onlyItem._id) ?? 0) : 0
+                const useSingleLaneHeight = Boolean(onlyItem) && onlyItemLane === 0
+                const dayLaneCount = useSingleLaneHeight ? 1 : laneCount
                 return (
-                  <button key={iso} type="button" className={`calendar-cell ${inMonth ? '' : 'is-muted'} ${tone}`.trim()} onClick={() => items.length > 0 && setSelectedDay(iso)} disabled={items.length === 0}>
+                  <button key={iso} type="button" className={`calendar-cell ${inMonth ? '' : 'is-muted'} ${items.length > 0 ? 'has-items' : ''}`.trim()} onClick={() => items.length > 0 && setSelectedDay(iso)} disabled={items.length === 0}>
+                    {items.length > 0 ? (
+                      <span
+                        className="calendar-segments"
+                        style={{ '--day-lane-count': String(dayLaneCount) } as Record<string, string>}
+                        aria-hidden="true"
+                      >
+                        {sortedItems.map((item) => {
+                          const { fromPrev, toNext } = getRangeEdgeState(item, iso)
+                          const lane = laneById.get(item._id) ?? 0
+                          const gridRowStart = useSingleLaneHeight ? 1 : lane + 1
+                          return (
+                            <span
+                              key={`${iso}-${item._id}`}
+                              className={`calendar-segment ${getDaySegmentTone(item)} ${fromPrev ? 'from-prev' : ''} ${toNext ? 'to-next' : ''}`.trim()}
+                              style={{ gridRowStart: String(gridRowStart) }}
+                            />
+                          )
+                          })}
+                      </span>
+                    ) : null}
                     <span className="calendar-date">{day.getDate()}</span>
-                    {items.length > 0 ? <span className="calendar-count">{items.length} request(s)</span> : null}
                   </button>
                 )
               })}
@@ -653,7 +808,7 @@ function Admin() {
                           </select>
                         </label>
                         <button className="admin-note-trigger" type="button" onClick={() => openNoteEditor(item)}>
-                          {(noteDrafts[item._id] ?? item.note ?? '').trim() ? 'Write more' : 'Write note'}
+                          Notes
                         </button>
                       </div>
 
@@ -665,6 +820,25 @@ function Admin() {
                     </article>
                   )
                 })}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {messageModal ? (
+          <div className="admin-modal-backdrop" onClick={() => setMessageModal(null)}>
+            <div className="admin-modal admin-note-modal" onClick={(event) => event.stopPropagation()}>
+              <div className="admin-modal-head">
+                <h3>User Message{messageModal.name ? ` - ${messageModal.name}` : ''}</h3>
+                <button className="button secondary" type="button" onClick={() => setMessageModal(null)}>Close</button>
+              </div>
+              <div className="admin-note-sheet">
+                <textarea
+                  className="admin-note-sheet-input"
+                  rows={10}
+                  value={messageModal.message}
+                  readOnly
+                />
               </div>
             </div>
           </div>

@@ -16,7 +16,7 @@ type I18nContextValue = {
 
 const I18nContext = createContext<I18nContextValue | undefined>(undefined)
 
-const STORAGE_KEY = 'jewhaven_language'
+const STORAGE_KEY = 'bathroomsheli_language'
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>(() => {

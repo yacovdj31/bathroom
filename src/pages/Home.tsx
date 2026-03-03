@@ -1,6 +1,7 @@
 ﻿import { Link } from 'react-router-dom'
 import IncludedFeatures from '../components/IncludedFeatures'
 import QuoteForm from '../components/QuoteForm'
+import { eventTypes } from '../content/eventTypes'
 import { useI18n } from '../i18n'
 
 const PHONE_NUMBER = '053-344-1353'
@@ -39,6 +40,29 @@ function Home() {
             <span key={badge} className="badge">
               {badge}
             </span>
+          ))}
+        </div>
+      </section>
+
+      <section className="section event-types-section">
+        <div className="section-header">
+          <h2>Event Types We Serve Across Israel</h2>
+          <p className="muted">
+            Luxury restroom trailer rentals for weddings, private events, corporate productions, and long-term projects.
+          </p>
+        </div>
+        <div className="event-types-grid">
+          {eventTypes.map((type) => (
+            <article key={type.id} className="event-type-card">
+              <div className="event-type-image-shell">
+                <img className="event-type-image" src={type.homeImage} alt={`${type.title} restroom trailer service`} />
+              </div>
+              <h3>{type.title}</h3>
+              <p>{type.shortText}</p>
+              <Link className="event-type-link" to={`/about#${type.id}`}>
+                Learn More
+              </Link>
+            </article>
           ))}
         </div>
       </section>
@@ -86,7 +110,7 @@ function Home() {
         </div>
         <div className="card-grid">
           {strings.home.faq.items.map((item) => (
-            <Link key={item.question} className="card card-link" to="/contact">
+            <Link key={item.question} className="card card-link" to="/items#top">
               <h3>{item.question}</h3>
               <p>{item.answer}</p>
             </Link>
